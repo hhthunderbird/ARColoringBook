@@ -1,0 +1,21 @@
+# 1. Update minimum version to silence the deprecation warning
+cmake_minimum_required(VERSION 3.22.1)
+
+# 2. Define the project name (Fixes "No project() command" warning)
+project(Felina)
+
+# Optimization Flags
+if(MSVC)
+    add_compile_options(/O2 /Ot /fp:fast)
+else()
+    add_compile_options(-O3 -ffast-math)
+endif()
+
+add_library(Felina SHARED FelinaMath.cpp)
+
+# 3. Add the library
+add_library( 
+     Felina
+     SHARED
+     Felina.cpp
+)
