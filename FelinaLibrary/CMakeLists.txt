@@ -32,34 +32,43 @@ else()
 endif()
 
 # Set Unity plugin output directories when building with CMake
-if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    # iOS: place the compiled library into Assets/Plugins/iOS
-    set_target_properties(Felina PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/iOS"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/iOS"
-        FRAMEWORK FALSE
-    )
-elseif(APPLE)
-    # macOS: place into Assets/Plugins/macOS
-    set_target_properties(Felina PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/macOS"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/macOS"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/macOS"
-    )
-elseif(WIN32)
-    # Windows x86_64 DLL output
-    set_target_properties(Felina PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/x86_64"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/x86_64"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/x86_64"
-    )
+# Only set these if CMAKE_INSTALL_PREFIX is not explicitly set (i.e., for local builds)
+# For CI/CD builds with install prefix, skip these to allow proper install step
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    message(STATUS "Using default output directories for Unity plugins")
+    
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        # iOS: place the compiled library into Assets/Plugins/iOS
+        set_target_properties(Felina PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/iOS"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/iOS"
+            FRAMEWORK FALSE
+        )
+    elseif(APPLE)
+        # macOS: place into Assets/Plugins/macOS
+        set_target_properties(Felina PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/macOS"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/macOS"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/macOS"
+        )
+    elseif(WIN32)
+        # Windows x86_64 DLL output
+        set_target_properties(Felina PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/x86_64"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/x86_64"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/x86_64"
+        )
+    else()
+        # Android and other platforms
+        set_target_properties(Felina PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/Android/"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/Android/"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/Android/"
+        )
+    endif()
 else()
-    # Android and other platforms
-    set_target_properties(Felina PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/Android/"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/Android/"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/Android/"
-    )
+    message(STATUS "CMAKE_INSTALL_PREFIX is set to: ${CMAKE_INSTALL_PREFIX}")
+    message(STATUS "Skipping output directory overrides for install-based build")
 endif()
 
 # Install rules for GitHub Actions workflow

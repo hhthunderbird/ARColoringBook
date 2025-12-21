@@ -1,5 +1,9 @@
 name: Build iOS Library and Create Unity Package
 
+permissions:
+  contents: write
+  packages: write
+
 on:
   push:
     branches:
@@ -197,8 +201,8 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "chore: Update iOS native libraries [skip ci]"
-            git push
-            echo "? Committed and pushed iOS libraries"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
+            echo "✓ Committed and pushed iOS libraries"
           fi
 
   build-other-platforms:
@@ -242,6 +246,7 @@ jobs:
           brew install cmake ninja
       
       - name: Build Library
+        shell: bash
         run: |
           cd FelinaLibrary
           mkdir -p build/${{ matrix.platform }}
@@ -251,6 +256,11 @@ jobs:
           cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/${{ matrix.platform }}
           ninja
           ninja install
+          
+          # Debug: Show what was installed
+          echo "=== Install directory contents ==="
+          find ../../install/${{ matrix.platform }} -type f || true
+          ls -R ../../install/${{ matrix.platform }} || true
       
       - name: Copy to Plugins (Windows)
         if: matrix.os == 'windows-latest'
@@ -258,16 +268,41 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path "${{ matrix.plugin_path }}"
           
+          # Debug: Show install directory structure
+          Write-Host "=== Checking install directory ==="
+          Get-ChildItem -Recurse "FelinaLibrary/install/${{ matrix.platform }}" -ErrorAction SilentlyContinue | Format-Table -AutoSize
+          
+          $found = $false
+          
+          # Check bin directory
           if (Test-Path "FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }}") {
             Copy-Item "FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }}" "${{ matrix.plugin_path }}/"
-          } elseif (Test-Path "FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}") {
-            Copy-Item "FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}" "${{ matrix.plugin_path }}/"
-          } else {
-            Write-Error "Could not find ${{ matrix.output }}"
-            exit 1
+            $found = $true
+            Write-Host "✓ Copied from bin/ to ${{ matrix.plugin_path }}/"
           }
           
-          Write-Host "✓ Copied ${{ matrix.output }} to ${{ matrix.plugin_path }}/"
+          # Check lib directory
+          if (-not $found -and (Test-Path "FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}")) {
+            Copy-Item "FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}" "${{ matrix.plugin_path }}/"
+            $found = $true
+            Write-Host "✓ Copied from lib/ to ${{ matrix.plugin_path }}/"
+          }
+          
+          # Check root install directory
+          if (-not $found -and (Test-Path "FelinaLibrary/install/${{ matrix.platform }}/${{ matrix.output }}")) {
+            Copy-Item "FelinaLibrary/install/${{ matrix.platform }}/${{ matrix.output }}" "${{ matrix.plugin_path }}/"
+            $found = $true
+            Write-Host "✓ Copied from root to ${{ matrix.plugin_path }}/"
+          }
+          
+          if (-not $found) {
+            Write-Error "Could not find ${{ matrix.output }} in any expected location"
+            Write-Host "Searched locations:"
+            Write-Host "  - FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }}"
+            Write-Host "  - FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}"
+            Write-Host "  - FelinaLibrary/install/${{ matrix.platform }}/${{ matrix.output }}"
+            exit 1
+          }
       
       - name: Copy to Plugins (Unix)
         if: matrix.os != 'windows-latest'
