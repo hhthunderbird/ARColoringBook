@@ -32,12 +32,19 @@ else()
 endif()
 
 # Set Unity plugin output directories when building with CMake
-if(APPLE)
-    # iOS: place the compiled library and headers into Assets/Plugins/iOS
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    # iOS: place the compiled library into Assets/Plugins/iOS
     set_target_properties(Felina PROPERTIES
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/iOS"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/iOS"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/iOS"
+        FRAMEWORK FALSE
+    )
+elseif(APPLE)
+    # macOS: place into Assets/Plugins/macOS
+    set_target_properties(Felina PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/macOS"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/macOS"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/macOS"
     )
 elseif(WIN32)
     # Windows x86_64 DLL output
