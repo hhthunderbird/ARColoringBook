@@ -40,22 +40,23 @@ Since we're already managing versions manually in the "Get Version" step, we don
 ```
 
 ### Fix #2: Improve Artifact Organization
-The previous step was using a wildcard copy that might create files in wrong locations:
+The previous step was using a wildcard copy that might create files in wrong locations. Also, the artifact structure doesn't include the full `Assets/Plugins/{platform}` path - it only contains the library files directly:
 
 ```bash
-# OLD - Could copy artifacts incorrectly
-for dir in artifacts/*/; do
-  if [ "$dir" != "artifacts/ios-libraries/" ]; then
-    cp -R "$dir"* Assets/Plugins/
-  fi
-done
+# OLD - Tried to copy nested path that doesn't exist
+cp -R artifacts/Windows-library/Assets/Plugins/x86_64/* Assets/Plugins/x86_64/
 
-# NEW - Explicit platform-specific copying
-if [ -d "artifacts/Windows-library" ]; then
-  mkdir -p Assets/Plugins/x86_64
-  cp -R artifacts/Windows-library/Assets/Plugins/x86_64/* Assets/Plugins/x86_64/
-fi
-# (Same pattern for macOS and Android)
+# NEW - Copy directly from artifact root
+cp -R artifacts/Windows-library/* Assets/Plugins/x86_64/
+```
+
+**Artifact Structure:**
+```
+artifacts/
+??? ios-libraries/          # Contains Felina.xcframework/
+??? Windows-library/        # Contains Felina.dll directly
+??? macOS-library/          # Contains libFelina.dylib directly
+??? Android-library/        # Contains libFelina.so directly
 ```
 
 ## Benefits

@@ -337,6 +337,9 @@ jobs:
       
       - name: Organize Plugin Files
         run: |
+          echo "=== Artifact directory structure ==="
+          find artifacts -type f || true
+          
           # Copy iOS libraries
           if [ -d "artifacts/ios-libraries" ]; then
             mkdir -p Assets/Plugins/iOS
@@ -344,22 +347,25 @@ jobs:
             echo "✓ Copied iOS libraries"
           fi
           
-          # Copy other platform libraries while preserving directory structure
+          # Copy Windows library
           if [ -d "artifacts/Windows-library" ]; then
             mkdir -p Assets/Plugins/x86_64
-            cp -R artifacts/Windows-library/Assets/Plugins/x86_64/* Assets/Plugins/x86_64/
+            # The artifact contains the files directly, not nested in Assets/Plugins/x86_64
+            cp -R artifacts/Windows-library/* Assets/Plugins/x86_64/
             echo "✓ Copied Windows libraries"
           fi
           
+          # Copy macOS library
           if [ -d "artifacts/macOS-library" ]; then
             mkdir -p Assets/Plugins/macOS
-            cp -R artifacts/macOS-library/Assets/Plugins/macOS/* Assets/Plugins/macOS/
+            cp -R artifacts/macOS-library/* Assets/Plugins/macOS/
             echo "✓ Copied macOS libraries"
           fi
           
+          # Copy Android library
           if [ -d "artifacts/Android-library" ]; then
             mkdir -p Assets/Plugins/Android/libs/arm64-v8a
-            cp -R artifacts/Android-library/Assets/Plugins/Android/libs/arm64-v8a/* Assets/Plugins/Android/libs/arm64-v8a/
+            cp -R artifacts/Android-library/* Assets/Plugins/Android/libs/arm64-v8a/
             echo "✓ Copied Android libraries"
           fi
           
