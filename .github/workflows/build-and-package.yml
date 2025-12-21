@@ -106,25 +106,16 @@ jobs:
             -library install/ios-simulator/lib/lib${IOS_LIBRARY_NAME}.a \
             -output install/ios-universal/${IOS_LIBRARY_NAME}.xcframework
           
-          echo "? XCFramework created successfully"
+          echo "✓ XCFramework created successfully"
           
-          # Also create traditional fat library for backward compatibility
-          lipo -create \
-            install/ios/lib/lib${IOS_LIBRARY_NAME}.a \
-            install/ios-simulator/lib/lib${IOS_LIBRARY_NAME}.a \
-            -output install/ios-universal/lib${IOS_LIBRARY_NAME}.a
-          
-          echo "? Fat library created successfully"
+          # Note: Cannot create traditional fat library when both device and simulator use arm64
+          # XCFramework is the modern solution that handles this properly
+          echo "ℹ Skipping fat library creation (both architectures are arm64)"
       
       - name: Verify Libraries
         run: |
           cd FelinaLibrary/install/ios-universal
           
-          echo "=== Fat Library Info ==="
-          file lib${IOS_LIBRARY_NAME}.a
-          lipo -info lib${IOS_LIBRARY_NAME}.a
-          
-          echo ""
           echo "=== XCFramework Info ==="
           if [ -d "${IOS_LIBRARY_NAME}.xcframework" ]; then
             find ${IOS_LIBRARY_NAME}.xcframework -name "*.a" -exec file {} \;
@@ -136,16 +127,13 @@ jobs:
           # Create Plugins directory structure
           mkdir -p Assets/Plugins/iOS
           
-          # Copy xcframework (preferred)
+          # Copy xcframework
           if [ -d "FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework" ]; then
             cp -R FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework Assets/Plugins/iOS/
-            echo "? Copied xcframework to Assets/Plugins/iOS/"
-          fi
-          
-          # Copy fat library (fallback)
-          if [ -f "FelinaLibrary/install/ios-universal/lib${IOS_LIBRARY_NAME}.a" ]; then
-            cp FelinaLibrary/install/ios-universal/lib${IOS_LIBRARY_NAME}.a Assets/Plugins/iOS/
-            echo "? Copied fat library to Assets/Plugins/iOS/"
+            echo "✓ Copied xcframework to Assets/Plugins/iOS/"
+          else
+            echo "✗ XCFramework not found!"
+            exit 1
           fi
       
       - name: Create Plugin Meta Files
@@ -186,47 +174,7 @@ jobs:
             assetBundleName: 
             assetBundleVariant: 
           EOF
-            echo "? Created xcframework .meta file"
-          fi
-          
-          # Create .meta file for fat library
-          if [ -f "Assets/Plugins/iOS/lib${IOS_LIBRARY_NAME}.a" ]; then
-            cat > Assets/Plugins/iOS/lib${IOS_LIBRARY_NAME}.a.meta << EOF
-          fileFormatVersion: 2
-          guid: $(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
-          PluginImporter:
-            externalObjects: {}
-            serializedVersion: 2
-            iconMap: {}
-            executionOrder: {}
-            defineConstraints: []
-            isPreloaded: 0
-            isOverridable: 0
-            isExplicitlyReferenced: 0
-            validateReferences: 1
-            platformData:
-            - first:
-                Any: 
-              second:
-                enabled: 0
-                settings: {}
-            - first:
-                Editor: Editor
-              second:
-                enabled: 0
-                settings:
-                  DefaultValueInitialized: true
-            - first:
-                iPhone: iOS
-              second:
-                enabled: 1
-                settings:
-                  AddToEmbeddedBinaries: false
-            userData: 
-            assetBundleName: 
-            assetBundleVariant: 
-          EOF
-            echo "? Created fat library .meta file"
+            echo "✓ Created xcframework .meta file"
           fi
       
       - name: Upload iOS Libraries as Artifact
@@ -304,18 +252,29 @@ jobs:
           ninja
           ninja install
       
-      - name: Copy to Plugins
+      - name: Copy to Plugins (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "${{ matrix.plugin_path }}"
+          
+          if (Test-Path "FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }}") {
+            Copy-Item "FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }}" "${{ matrix.plugin_path }}/"
+          } elseif (Test-Path "FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}") {
+            Copy-Item "FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}" "${{ matrix.plugin_path }}/"
+          } else {
+            Write-Error "Could not find ${{ matrix.output }}"
+            exit 1
+          }
+          
+          Write-Host "✓ Copied ${{ matrix.output }} to ${{ matrix.plugin_path }}/"
+      
+      - name: Copy to Plugins (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
         run: |
           mkdir -p ${{ matrix.plugin_path }}
-          
-          # Find and copy the library from install directory
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }} ${{ matrix.plugin_path }}/ || \
-            cp FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }} ${{ matrix.plugin_path }}/
-          else
-            cp FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }} ${{ matrix.plugin_path }}/
-          fi
-          
+          cp FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }} ${{ matrix.plugin_path }}/
           echo "✓ Copied ${{ matrix.output }} to ${{ matrix.plugin_path }}/"
       
       - name: Upload Artifact
