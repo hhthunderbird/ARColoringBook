@@ -265,7 +265,7 @@ jobs:
             plugin_path: Assets/Plugins/x86_64
           - os: macos-latest
             platform: macOS
-            output: libFelina.dylib\
+            output: libFelina.dylib
             plugin_path: Assets/Plugins/macOS
           - os: ubuntu-latest
             platform: Android
