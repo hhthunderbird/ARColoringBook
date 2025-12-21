@@ -12,6 +12,7 @@ mkdir -p "$BUILD_DIR"
 # Build for iOS device (arm64)
 echo "Building for iOS device (arm64)..."
 cmake -S . -B "$BUILD_DIR/device" \
+  -G Ninja \
   -DCMAKE_SYSTEM_NAME=iOS \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
