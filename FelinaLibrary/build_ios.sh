@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # iOS build script for Felina native library
 
 set -e
@@ -46,8 +46,18 @@ mkdir -p "$UNITY_PLUGIN_DIR"
 # Copy device library (Unity builds for device by default)
 cp "$BUILD_DIR/device/libFelina.dylib" "$UNITY_PLUGIN_DIR/libFelina.a"
 
-echo "? Built and copied libFelina.a to $UNITY_PLUGIN_DIR"
+echo "✓ Built and copied libFelina.a to $UNITY_PLUGIN_DIR"
 echo "  iOS device (arm64)"
 echo ""
 echo "Note: XCFramework created at $BUILD_DIR/Felina.xcframework"
 echo "      for advanced iOS/simulator support"
+
+# Verify macOS library
+echo "Verifying macOS library..."
+if [ -f "Assets/Plugins/macOS/libFelina.dylib" ]; then
+  echo "✓ libFelina.dylib exists in Assets/Plugins/macOS/"
+  file Assets/Plugins/macOS/libFelina.dylib
+else
+  echo "✗ libFelina.dylib not found in Assets/Plugins/macOS/"
+  exit 1
+fi
