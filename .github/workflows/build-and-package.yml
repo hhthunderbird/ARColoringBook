@@ -265,7 +265,7 @@ jobs:
             plugin_path: Assets/Plugins/x86_64
           - os: macos-latest
             platform: macOS
-            output: libFelina.dylib
+            output: libFelina.dylib\
             plugin_path: Assets/Plugins/macOS
           - os: ubuntu-latest
             platform: Android
@@ -299,13 +299,24 @@ jobs:
           mkdir -p build/${{ matrix.platform }}
           cd build/${{ matrix.platform }}
           
-          cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release
+          # Build to install directory to avoid conflicts with CMakeLists.txt output paths
+          cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/${{ matrix.platform }}
           ninja
+          ninja install
       
       - name: Copy to Plugins
         run: |
           mkdir -p ${{ matrix.plugin_path }}
-          cp FelinaLibrary/build/${{ matrix.platform }}/${{ matrix.output }} ${{ matrix.plugin_path }}/
+          
+          # Find and copy the library from install directory
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }} ${{ matrix.plugin_path }}/ || \
+            cp FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }} ${{ matrix.plugin_path }}/
+          else
+            cp FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }} ${{ matrix.plugin_path }}/
+          fi
+          
+          echo "✓ Copied ${{ matrix.output }} to ${{ matrix.plugin_path }}/"
       
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -552,7 +563,7 @@ jobs:
 
 # Create and push tag
 ## git tag -a v1.0.0 -m "Release v1.0.0"
-## git push origin v1.0.0 
+## git push origin v1.0.0
 
 # Workflow will:
 # 1. Build all platform libraries
