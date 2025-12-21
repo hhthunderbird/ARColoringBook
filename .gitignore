@@ -97,3 +97,38 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# ========================================
+# FelinaLibrary Native Build Artifacts
+# ========================================
+
+# FelinaLibrary build directories
+/FelinaLibrary/build/
+/FelinaLibrary/out/
+/FelinaLibrary/install/
+
+# FelinaLibrary IDE files
+/FelinaLibrary/.vs/
+/FelinaLibrary/*.vcxproj
+/FelinaLibrary/*.vcxproj.filters
+/FelinaLibrary/*.vcxproj.user
+/FelinaLibrary/*.sln
+
+# FelinaLibrary compiled files (keep Assets/Plugins/* files tracked)
+/FelinaLibrary/*.o
+/FelinaLibrary/*.obj
+/FelinaLibrary/libs/
+/FelinaLibrary/obj/
+
+# CMake generated files in FelinaLibrary
+/FelinaLibrary/CMakeCache.txt
+/FelinaLibrary/CMakeFiles/
+/FelinaLibrary/cmake_install.cmake
+/FelinaLibrary/*.cmake
+!/FelinaLibrary/CMakeLists.txt
+
+# Android NDK generated files
+/FelinaLibrary/jni/
+
+# FelinaLibrary logs
+/FelinaLibrary/*.log
