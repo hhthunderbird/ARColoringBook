@@ -341,16 +341,30 @@ jobs:
           if [ -d "artifacts/ios-libraries" ]; then
             mkdir -p Assets/Plugins/iOS
             cp -R artifacts/ios-libraries/* Assets/Plugins/iOS/
+            echo "✓ Copied iOS libraries"
           fi
           
-          # Copy other platform libraries
-          for dir in artifacts/*/; do
-            if [ "$dir" != "artifacts/ios-libraries/" ]; then
-              cp -R "$dir"* Assets/Plugins/
-            fi
-          done
+          # Copy other platform libraries while preserving directory structure
+          if [ -d "artifacts/Windows-library" ]; then
+            mkdir -p Assets/Plugins/x86_64
+            cp -R artifacts/Windows-library/Assets/Plugins/x86_64/* Assets/Plugins/x86_64/
+            echo "✓ Copied Windows libraries"
+          fi
           
-          echo "? All libraries organized in Assets/Plugins/"
+          if [ -d "artifacts/macOS-library" ]; then
+            mkdir -p Assets/Plugins/macOS
+            cp -R artifacts/macOS-library/Assets/Plugins/macOS/* Assets/Plugins/macOS/
+            echo "✓ Copied macOS libraries"
+          fi
+          
+          if [ -d "artifacts/Android-library" ]; then
+            mkdir -p Assets/Plugins/Android/libs/arm64-v8a
+            cp -R artifacts/Android-library/Assets/Plugins/Android/libs/arm64-v8a/* Assets/Plugins/Android/libs/arm64-v8a/
+            echo "✓ Copied Android libraries"
+          fi
+          
+          echo "✓ All libraries organized in Assets/Plugins/"
+          echo "=== Plugin directory structure ==="
           find Assets/Plugins -type f
       
       - name: Get Version
@@ -388,6 +402,7 @@ jobs:
           unityVersion: ${{ env.UNITY_VERSION }}
           targetPlatform: WebGL
           buildMethod: UnityEditor.BuildPipeline.BuildPlayer
+          versioning: None
       
       - name: Export Unity Package
         run: |
