@@ -1,0 +1,561 @@
+name: Build iOS Library and Create Unity Package
+
+on:
+  push:
+    branches:
+      - main
+      - feature/store-version
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g., 1.0.0)'
+        required: false
+        default: '1.0.0'
+
+env:
+  UNITY_VERSION: '2022.3'
+  PACKAGE_NAME: 'FelinaARColoringBook'
+  IOS_LIBRARY_NAME: 'Felina'
+
+jobs:
+  build-ios-library:
+    name: Build iOS Native Library
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      
+      - name: Install CMake
+        run: |
+          brew install cmake ninja
+      
+      - name: Cache iOS Build
+        uses: actions/cache@v3
+        with:
+          path: |
+            FelinaLibrary/build/ios
+          key: ${{ runner.os }}-ios-build-${{ hashFiles('FelinaLibrary/**') }}
+          restore-keys: |
+            ${{ runner.os }}-ios-build-
+      
+      - name: Build iOS Static Library (arm64)
+        run: |
+          cd FelinaLibrary
+          mkdir -p build/ios
+          cd build/ios
+          
+          # Configure for iOS arm64 (device)
+          cmake ../.. \
+            -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake \
+            -DPLATFORM=OS64 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=../../install/ios \
+            -DENABLE_BITCODE=OFF \
+            -DENABLE_ARC=ON
+          
+          # Build
+          ninja
+          ninja install
+          
+          echo "? iOS arm64 library built successfully"
+      
+      - name: Build iOS Simulator Library (arm64 + x86_64)
+        run: |
+          cd FelinaLibrary
+          mkdir -p build/ios-simulator
+          cd build/ios-simulator
+          
+          # Configure for iOS Simulator
+          cmake ../.. \
+            -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake \
+            -DPLATFORM=SIMULATORARM64 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=../../install/ios-simulator \
+            -DENABLE_BITCODE=OFF \
+            -DENABLE_ARC=ON
+          
+          # Build
+          ninja
+          ninja install
+          
+          echo "? iOS Simulator library built successfully"
+      
+      - name: Create Fat Library (Device + Simulator)
+        run: |
+          cd FelinaLibrary
+          mkdir -p install/ios-universal
+          
+          # Create xcframework (recommended for modern iOS)
+          xcodebuild -create-xcframework \
+            -library install/ios/lib/lib${IOS_LIBRARY_NAME}.a \
+            -library install/ios-simulator/lib/lib${IOS_LIBRARY_NAME}.a \
+            -output install/ios-universal/${IOS_LIBRARY_NAME}.xcframework
+          
+          echo "? XCFramework created successfully"
+          
+          # Also create traditional fat library for backward compatibility
+          lipo -create \
+            install/ios/lib/lib${IOS_LIBRARY_NAME}.a \
+            install/ios-simulator/lib/lib${IOS_LIBRARY_NAME}.a \
+            -output install/ios-universal/lib${IOS_LIBRARY_NAME}.a
+          
+          echo "? Fat library created successfully"
+      
+      - name: Verify Libraries
+        run: |
+          cd FelinaLibrary/install/ios-universal
+          
+          echo "=== Fat Library Info ==="
+          file lib${IOS_LIBRARY_NAME}.a
+          lipo -info lib${IOS_LIBRARY_NAME}.a
+          
+          echo ""
+          echo "=== XCFramework Info ==="
+          if [ -d "${IOS_LIBRARY_NAME}.xcframework" ]; then
+            find ${IOS_LIBRARY_NAME}.xcframework -name "*.a" -exec file {} \;
+            find ${IOS_LIBRARY_NAME}.xcframework -name "*.a" -exec lipo -info {} \;
+          fi
+      
+      - name: Copy to Unity Plugins Folder
+        run: |
+          # Create Plugins directory structure
+          mkdir -p Assets/Plugins/iOS
+          
+          # Copy xcframework (preferred)
+          if [ -d "FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework" ]; then
+            cp -R FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework Assets/Plugins/iOS/
+            echo "? Copied xcframework to Assets/Plugins/iOS/"
+          fi
+          
+          # Copy fat library (fallback)
+          if [ -f "FelinaLibrary/install/ios-universal/lib${IOS_LIBRARY_NAME}.a" ]; then
+            cp FelinaLibrary/install/ios-universal/lib${IOS_LIBRARY_NAME}.a Assets/Plugins/iOS/
+            echo "? Copied fat library to Assets/Plugins/iOS/"
+          fi
+      
+      - name: Create Plugin Meta Files
+        run: |
+          # Create .meta file for xcframework
+          if [ -d "Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework" ]; then
+            cat > Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta << EOF
+          fileFormatVersion: 2
+          guid: $(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+          PluginImporter:
+            externalObjects: {}
+            serializedVersion: 2
+            iconMap: {}
+            executionOrder: {}
+            defineConstraints: []
+            isPreloaded: 0
+            isOverridable: 0
+            isExplicitlyReferenced: 0
+            validateReferences: 1
+            platformData:
+            - first:
+                Any: 
+              second:
+                enabled: 0
+                settings: {}
+            - first:
+                Editor: Editor
+              second:
+                enabled: 0
+                settings:
+                  DefaultValueInitialized: true
+            - first:
+                iPhone: iOS
+              second:
+                enabled: 1
+                settings: {}
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          EOF
+            echo "? Created xcframework .meta file"
+          fi
+          
+          # Create .meta file for fat library
+          if [ -f "Assets/Plugins/iOS/lib${IOS_LIBRARY_NAME}.a" ]; then
+            cat > Assets/Plugins/iOS/lib${IOS_LIBRARY_NAME}.a.meta << EOF
+          fileFormatVersion: 2
+          guid: $(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+          PluginImporter:
+            externalObjects: {}
+            serializedVersion: 2
+            iconMap: {}
+            executionOrder: {}
+            defineConstraints: []
+            isPreloaded: 0
+            isOverridable: 0
+            isExplicitlyReferenced: 0
+            validateReferences: 1
+            platformData:
+            - first:
+                Any: 
+              second:
+                enabled: 0
+                settings: {}
+            - first:
+                Editor: Editor
+              second:
+                enabled: 0
+                settings:
+                  DefaultValueInitialized: true
+            - first:
+                iPhone: iOS
+              second:
+                enabled: 1
+                settings:
+                  AddToEmbeddedBinaries: false
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          EOF
+            echo "? Created fat library .meta file"
+          fi
+      
+      - name: Upload iOS Libraries as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-libraries
+          path: |
+            Assets/Plugins/iOS/
+          retention-days: 30
+      
+      - name: Commit iOS Libraries (if on main branch)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/store-version'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "GitHub Actions"
+          
+          git add Assets/Plugins/iOS/
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: Update iOS native libraries [skip ci]"
+            git push
+            echo "? Committed and pushed iOS libraries"
+          fi
+
+  build-other-platforms:
+    name: Build Other Platform Libraries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: Windows
+            output: Felina.dll
+            plugin_path: Assets/Plugins/x86_64
+          - os: macos-latest
+            platform: macOS
+            output: libFelina.dylib
+            plugin_path: Assets/Plugins/macOS
+          - os: ubuntu-latest
+            platform: Android
+            output: libFelina.so
+            plugin_path: Assets/Plugins/Android/libs/arm64-v8a
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Setup Build Environment (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
+      
+      - name: Setup Build Environment (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+      
+      - name: Setup Build Environment (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install cmake ninja
+      
+      - name: Build Library
+        run: |
+          cd FelinaLibrary
+          mkdir -p build/${{ matrix.platform }}
+          cd build/${{ matrix.platform }}
+          
+          cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release
+          ninja
+      
+      - name: Copy to Plugins
+        run: |
+          mkdir -p ${{ matrix.plugin_path }}
+          cp FelinaLibrary/build/${{ matrix.platform }}/${{ matrix.output }} ${{ matrix.plugin_path }}/
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-library
+          path: ${{ matrix.plugin_path }}/
+          retention-days: 30
+
+  create-unity-package:
+    name: Create Unity Package
+    needs: [build-ios-library, build-other-platforms]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Download All Libraries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Organize Plugin Files
+        run: |
+          # Copy iOS libraries
+          if [ -d "artifacts/ios-libraries" ]; then
+            mkdir -p Assets/Plugins/iOS
+            cp -R artifacts/ios-libraries/* Assets/Plugins/iOS/
+          fi
+          
+          # Copy other platform libraries
+          for dir in artifacts/*/; do
+            if [ "$dir" != "artifacts/ios-libraries/" ]; then
+              cp -R "$dir"* Assets/Plugins/
+            fi
+          done
+          
+          echo "? All libraries organized in Assets/Plugins/"
+          find Assets/Plugins -type f
+      
+      - name: Get Version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ $GITHUB_REF == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=$(date +%Y.%m.%d)-$(git rev-parse --short HEAD)
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "?? Package version: $VERSION"
+      
+      - name: Update Package Version
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          
+          # Update package.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" Assets/ColouringBook/package.json
+          
+          # Update metadata.json
+          sed -i "s/\"current\": \".*\"/\"current\": \"$VERSION\"/" Assets/ColouringBook/.publisher/metadata.json
+          
+          echo "? Updated version to $VERSION"
+      
+      - name: Install Unity
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: WebGL
+          buildMethod: UnityEditor.BuildPipeline.BuildPlayer
+      
+      - name: Export Unity Package
+        run: |
+          # Create export script
+          mkdir -p Assets/Editor
+          cat > Assets/Editor/ExportPackage.cs << 'EOF'
+          using UnityEditor;
+          using UnityEngine;
+          using System.IO;
+          
+          public class ExportPackage
+          {
+              [MenuItem("Felina/Export Package")]
+              public static void Export()
+              {
+                  string packageName = System.Environment.GetEnvironmentVariable("PACKAGE_NAME") ?? "FelinaARColoringBook";
+                  string version = System.Environment.GetEnvironmentVariable("PACKAGE_VERSION") ?? "1.0.0";
+                  string outputPath = $"../Builds/{packageName}_v{version}.unitypackage";
+                  
+                  Directory.CreateDirectory("../Builds");
+                  
+                  string[] assetPaths = new string[]
+                  {
+                      "Assets/ColouringBook"
+                  };
+                  
+                  AssetDatabase.ExportPackage(
+                      assetPaths,
+                      outputPath,
+                      ExportPackageOptions.Recurse | ExportPackageOptions.IncludeDependencies
+                  );
+                  
+                  Debug.Log($"Package exported to: {outputPath}");
+              }
+          }
+          EOF
+          
+          # Run Unity in batch mode to export package
+          unity-editor \
+            -quit \
+            -batchmode \
+            -projectPath . \
+            -executeMethod ExportPackage.Export \
+            -logFile export.log
+          
+          cat export.log || true
+          
+          # Verify package was created
+          PACKAGE_FILE="Builds/${PACKAGE_NAME}_v${{ steps.version.outputs.version }}.unitypackage"
+          if [ -f "$PACKAGE_FILE" ]; then
+            echo "? Package created: $PACKAGE_FILE"
+            ls -lh "$PACKAGE_FILE"
+          else
+            echo "? Package creation failed"
+            exit 1
+          fi
+      
+      - name: Create Package Checksum
+        run: |
+          cd Builds
+          PACKAGE_FILE="${PACKAGE_NAME}_v${{ steps.version.outputs.version }}.unitypackage"
+          sha256sum "$PACKAGE_FILE" > "$PACKAGE_FILE.sha256"
+          echo "? Checksum created"
+      
+      - name: Upload Unity Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-package
+          path: |
+            Builds/*.unitypackage
+            Builds/*.sha256
+          retention-days: 90
+      
+      - name: Create Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            Builds/*.unitypackage
+            Builds/*.sha256
+          body: |
+            ## Felina AR Coloring Book v${{ steps.version.outputs.version }}
+            
+            ### ?? Installation
+            1. Download `${{ env.PACKAGE_NAME }}_v${{ steps.version.outputs.version }}.unitypackage`
+            2. Import into Unity via Assets > Import Package > Custom Package
+            3. Follow the [Quick Start Guide](https://github.com/${{ github.repository }}/wiki/Quick-Start)
+            
+            ### ?? Changelog
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/Assets/ColouringBook/CHANGELOG.md)
+            
+            ### ?? Verification
+            ```bash
+            sha256sum -c ${{ env.PACKAGE_NAME }}_v${{ steps.version.outputs.version }}.unitypackage.sha256
+            ```
+            
+            ### ?? Support
+            - Documentation: https://github.com/${{ github.repository }}/wiki
+            - Issues: https://github.com/${{ github.repository }}/issues
+            - Email: support@felina.dev
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test-package:
+    name: Test Unity Package Import
+    needs: create-unity-package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Empty Unity Project
+        run: |
+          mkdir -p TestProject
+          cd TestProject
+          
+          # Create minimal Unity project structure
+          mkdir -p Assets ProjectSettings Packages
+          
+          # Create ProjectSettings files
+          echo "EditorUserBuildSettings:" > ProjectSettings/EditorBuildSettings.asset
+          echo "m_ObjectHideFlags: 0" >> ProjectSettings/EditorBuildSettings.asset
+          echo "serializedVersion: 2" >> ProjectSettings/EditorBuildSettings.asset
+          echo "m_Scenes: []" >> ProjectSettings/EditorBuildSettings.asset
+      
+      - name: Download Unity Package
+        uses: actions/download-artifact@v4
+        with:
+          name: unity-package
+          path: TestProject/
+      
+      - name: Install Unity
+        uses: game-ci/unity-builder@v4
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: WebGL
+      
+      - name: Import and Test Package
+        run: |
+          cd TestProject
+          
+          # Import package
+          unity-editor \
+            -quit \
+            -batchmode \
+            -projectPath . \
+            -importPackage $(ls *.unitypackage | head -1) \
+            -logFile import.log
+          
+          cat import.log || true
+          
+          # Check for errors
+          if grep -q "error" import.log; then
+            echo "? Import failed with errors"
+            exit 1
+          else
+            echo "? Package imported successfully"
+          fi
+      
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestProject/*.log
+          retention-days: 7
+
+# Create and push tag
+## git tag -a v1.0.0 -m "Release v1.0.0"
+## git push origin v1.0.0
+
+# Workflow will:
+# 1. Build all platform libraries
+# 2. Create Unity package
+# 3. Test import
+# 4. Create GitHub release with downloadable .unitypackage
