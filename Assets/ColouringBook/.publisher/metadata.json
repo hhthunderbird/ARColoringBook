@@ -1,0 +1,104 @@
+{
+  "publisher": {
+    "name": "Felina",
+    "displayName": "Felina Studios",
+    "url": "https://github.com/hhthunderbird/ARColoringBook",
+    "supportEmail": "support@felina.dev",
+    "socialMedia": {
+      "github": "https://github.com/hhthunderbird",
+      "twitter": "@felinastudios",
+      "linkedin": "company/felina-studios"
+    }
+  },
+  "package": {
+    "assetName": "Felina AR Coloring Book",
+    "shortDescription": "Professional AR image tracking and texture capture system for interactive coloring book experiences.",
+    "longDescription": "Transform your Unity projects into interactive AR coloring books with Felina AR Coloring Book. This professional-grade package provides advanced image tracking, real-time texture capture with GPU-accelerated unwarp, and seamless content spawning.\n\nKey Features:\n• ARFoundation-based multi-platform support (iOS ARKit, Android ARCore)\n• Advanced homography-based texture unwarp for high-quality scans\n• Quality-based auto-capture with configurable thresholds\n• Device stability detection for optimal capture timing\n• Zero-allocation MaterialPropertyBlock texture updates\n• Performance-optimized for mobile devices\n• Custom editor inspectors for streamlined workflow\n• Native C++ plugin for performance-critical operations\n\nPerfect for:\n• Educational AR coloring book apps\n• Interactive marketing experiences\n• Art and creativity applications\n• Museums and exhibitions\n• Children's entertainment apps\n\nTechnical Highlights:\n• Singleton pattern with event-driven architecture\n• NativeArray usage for efficient memory management\n• Smart RenderTexture format detection\n• Frame-based camera feed caching\n• Extensible IARBridge interface for custom implementations\n\nIncludes:\n• Complete source code\n• Sample scene with setup guide\n• Native plugins for Windows/macOS/iOS/Android\n• Comprehensive documentation\n• Email support",
+    "technicalDetails": "• Unity 2022.3 or later\n• AR Foundation 5.0+\n• ARKit XR Plugin 5.0+ (iOS)\n• ARCore XR Plugin 5.0+ (Android)\n• Unity Mathematics 1.2.6+\n• C# 9.0, .NET Framework 4.7.1\n• Native C++ plugin (included)",
+    "category": "Tools/Visual Scripting",
+    "keywords": [
+      "AR",
+      "Augmented Reality",
+      "ARFoundation",
+      "Image Tracking",
+      "Coloring Book",
+      "Texture Capture",
+      "Computer Vision",
+      "ARKit",
+      "ARCore",
+      "Mobile AR",
+      "Interactive",
+      "Education",
+      "Children",
+      "Scanning",
+      "Homography"
+    ],
+    "platforms": [
+      "iOS",
+      "Android"
+    ],
+    "unityVersions": [
+      "2022.3",
+      "2023.1",
+      "2023.2",
+      "6000.0"
+    ]
+  },
+  "pricing": {
+    "model": "paid",
+    "currency": "USD",
+    "suggestedPrice": 49.99,
+    "notes": "Single-seat license. Each developer requires a license. Unlimited projects per license."
+  },
+  "support": {
+    "documentation": "https://github.com/hhthunderbird/ARColoringBook/wiki",
+    "email": "support@felina.dev",
+    "issueTracker": "https://github.com/hhthunderbird/ARColoringBook/issues",
+    "responseTime": "24-48 hours",
+    "languages": [
+      "English"
+    ]
+  },
+  "media": {
+    "iconPath": "Assets/ColouringBook/Felina.png",
+    "screenshots": [
+      {
+        "path": "Assets/ColouringBook/.publisher/screenshots/screenshot1.png",
+        "caption": "AR Scanner in action - Real-time texture capture"
+      },
+      {
+        "path": "Assets/ColouringBook/.publisher/screenshots/screenshot2.png",
+        "caption": "Custom Editor Inspector with reference library integration"
+      },
+      {
+        "path": "Assets/ColouringBook/.publisher/screenshots/screenshot3.png",
+        "caption": "Live tracking with quality feedback"
+      },
+      {
+        "path": "Assets/ColouringBook/.publisher/screenshots/screenshot4.png",
+        "caption": "Mobile-optimized performance settings"
+      },
+      {
+        "path": "Assets/ColouringBook/.publisher/screenshots/screenshot5.png",
+        "caption": "Sample scene setup showing complete workflow"
+      }
+    ],
+    "videos": [
+      {
+        "url": "https://www.youtube.com/watch?v=YOUR_VIDEO_ID",
+        "title": "Felina AR Coloring Book - Feature Overview",
+        "duration": "2:30"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=YOUR_DEMO_ID",
+        "title": "Quick Start Tutorial",
+        "duration": "5:00"
+      }
+    ]
+  },
+  "version": {
+    "current": "1.0.0",
+    "releaseDate": "2024-01-15",
+    "updateFrequency": "Monthly minor updates, quarterly major features"
+  }
+}

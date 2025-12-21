@@ -10,13 +10,11 @@ namespace Felina.ARColoringBook.Editor
     {
         private ARScannerManager _targetScript;
         private SerializedProperty _targetListProp;
-        private SerializedProperty _settingsProp;
 
         private void OnEnable()
         {
             _targetScript = ( ARScannerManager ) target;
             _targetListProp = serializedObject.FindProperty( "_targetList" );
-            _settingsProp = serializedObject.FindProperty( "settings" );
         }
 
         public override void OnInspectorGUI()
@@ -150,51 +148,7 @@ namespace Felina.ARColoringBook.Editor
                     EditorGUILayout.EndHorizontal();
                 }
                 EditorGUI.indentLevel--;
-            }
-
-
-
-            // AUTOMATICALLY FIND SETTINGS
-            if ( _settingsProp != null && _settingsProp.objectReferenceValue == null )
-            {
-                EditorGUILayout.HelpBox( "Settings not linked. Searching...", MessageType.Warning );
-
-                string[] guids = AssetDatabase.FindAssets( "t:Settings" );
-
-                if ( guids.Length > 0 )
-                {
-                    string path = AssetDatabase.GUIDToAssetPath( guids[ 0 ] );
-                    
-                    var settings = AssetDatabase.LoadAssetAtPath<Settings>( path );
-
-                    _settingsProp.objectReferenceValue = settings;
-
-                    serializedObject.ApplyModifiedProperties();
-                    var done = _settingsProp.serializedObject.ApplyModifiedProperties();
-                    
-                    Debug.Log( $"[Felina] Assigned Settings asset to ARScannerManager: {_settingsProp.objectReferenceValue} = {done}" );
-                    
-                    Debug.Log( $" [Felina] Auto-linked settings from: {path}" );
-                }
-                else
-                {
-                    EditorGUILayout.HelpBox( " No 'Settings' file found in Project! Please Create one.", MessageType.Error );
-                    if ( GUILayout.Button( "Create Settings Now" ) )
-                    {
-                        CreateSettingsFile();
-                    }
-                }
-
-                serializedObject.ApplyModifiedProperties();
-            }
-        }
-        private void CreateSettingsFile()
-        {
-            Settings asset = ScriptableObject.CreateInstance<Settings>();
-            AssetDatabase.CreateAsset( asset, "Assets/ColouringBook/Settings/Settings.asset" );
-            AssetDatabase.SaveAssets();
-            // The next OnInspectorGUI draw will pick it up automatically
+            }    
         }
     }
-
 }
