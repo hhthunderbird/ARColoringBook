@@ -552,7 +552,7 @@ jobs:
 
 # Create and push tag
 ## git tag -a v1.0.0 -m "Release v1.0.0"
-## git push origin v1.0.0
+## git push origin v1.0.0 
 
 # Workflow will:
 # 1. Build all platform libraries
