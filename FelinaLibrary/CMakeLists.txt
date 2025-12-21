@@ -9,11 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # 3. Add the library
-add_library( 
-     Felina
-     SHARED
-     Felina.cpp
-)
+# Use STATIC for iOS, SHARED for other platforms
+if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    add_library(Felina STATIC src/Felina.cpp)
+else()
+    add_library(Felina SHARED src/Felina.cpp)
+endif()
 
 # Optimization Flags
 # Apply optimization flags only for Release builds to avoid conflicts with Debug runtimes
@@ -53,3 +54,11 @@ else()
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../Assets/Plugins/Android/"
     )
 endif()
+
+# Install rules for GitHub Actions workflow
+install(TARGETS Felina
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+
