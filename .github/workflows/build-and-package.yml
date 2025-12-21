@@ -22,7 +22,7 @@ on:
         default: '1.0.0'
 
 env:
-  UNITY_VERSION: '2022.3'
+  UNITY_VERSION: '6000.0.30f1' # ❌ Missing indentation
   PACKAGE_NAME: 'FelinaARColoringBook'
   IOS_LIBRARY_NAME: 'Felina'
 
