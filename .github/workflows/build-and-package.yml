@@ -537,45 +537,52 @@ jobs:
           fi
       - name: Export Unity Package
         run: |
-          echo "=== Starting Unity Package Export ==="
+          echo "=== Creating Unity Package Manually ==="
           
-          # Ensure Builds directory exists
+          # Create Builds directory
           mkdir -p Builds
           
-          # Run Unity directly with Docker
-          docker run --rm \
-            --workdir /workspace \
-            -v "$(pwd):/workspace" \
-            -e UNITY_EMAIL="${{ secrets.UNITY_EMAIL }}" \
-            -e UNITY_PASSWORD="${{ secrets.UNITY_PASSWORD }}" \
-            -e UNITY_SERIAL="${{ secrets.UNITY_LICENSE }}" \
-            -e PACKAGE_NAME="${{ env.PACKAGE_NAME }}" \
-            -e PACKAGE_VERSION="${{ steps.version.outputs.version }}" \
-            unityci/editor:ubuntu-6000.0.30f1-base-3 \
-            bash -c '
-              echo "=== Activating Unity ==="
-              unity-editor -quit -batchmode -nographics -silent-crashes \
-                -logFile - \
-                -username "$UNITY_EMAIL" \
-                -password "$UNITY_PASSWORD" \
-                -serial "$UNITY_SERIAL" || true
-              
-              echo ""
-              echo "=== Refreshing Asset Database ==="
-              unity-editor -quit -batchmode -nographics \
-                -projectPath /workspace \
-                -executeMethod UnityEditor.AssetDatabase.Refresh \
-                -logFile - || true
-              
-              echo ""
-              echo "=== Running Package Export ==="
-              unity-editor -quit -batchmode -nographics \
-                -projectPath /workspace \
-                -executeMethod ExportPackage.Export \
-                -logFile - || echo "Export method failed"
-            '
+          # Define package file
+          VERSION=${{ steps.version.outputs.version }}
+          PACKAGE_FILE="Builds/${PACKAGE_NAME}_v${VERSION}.unitypackage"
           
-          echo "=== Unity execution completed ==="
+          echo "Package file will be: $PACKAGE_FILE"
+          
+          # Create a temporary directory for package contents
+          TEMP_DIR=$(mktemp -d)
+          echo "Temp directory: $TEMP_DIR"
+          
+          # Copy the entire Assets/ColouringBook folder to temp
+          echo "Copying Assets/ColouringBook to temp directory..."
+          mkdir -p "$TEMP_DIR/Assets"
+          cp -R Assets/ColouringBook "$TEMP_DIR/Assets/"
+          
+          # Also copy any meta files
+          if [ -f "Assets/ColouringBook.meta" ]; then
+            cp Assets/ColouringBook.meta "$TEMP_DIR/Assets/"
+          fi
+          
+          # Create the .unitypackage file (it's a gzipped tar archive)
+          echo "Creating .unitypackage archive..."
+          cd "$TEMP_DIR"
+          tar -czf "$GITHUB_WORKSPACE/$PACKAGE_FILE" Assets/
+          
+          # Verify the package was created
+          if [ -f "$GITHUB_WORKSPACE/$PACKAGE_FILE" ]; then
+            FILE_SIZE=$(stat -f%z "$GITHUB_WORKSPACE/$PACKAGE_FILE" 2>/dev/null || stat -c%s "$GITHUB_WORKSPACE/$PACKAGE_FILE")
+            echo "✓ Package created successfully!"
+            echo "  Path: $PACKAGE_FILE"
+            echo "  Size: $FILE_SIZE bytes ($((FILE_SIZE / 1024 / 1024)) MB)"
+          else
+            echo "✗ Package creation failed!"
+            exit 1
+          fi
+          
+          # Cleanup
+          cd "$GITHUB_WORKSPACE"
+          rm -rf "$TEMP_DIR"
+          
+          echo "=== Package export completed ==="
       
       - name: Check Unity Logs
         if: always()
