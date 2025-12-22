@@ -397,12 +397,7 @@ MonoBehaviour:
   _maxRotateSpeed: 5
   _targetList:
   - Name: m-cm-01
-    Size: {x: 1, y: 1.4143647}
-    IsTracking: 0
-    Transform: {fileID: 0}
-    Score: 0
-  - Name: m-cm-02
-    Size: {x: 1, y: 1.294}
+    Size: {x: 0, y: 0}
     IsTracking: 0
     Transform: {fileID: 0}
     Score: 0

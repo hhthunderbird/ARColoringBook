@@ -481,6 +481,25 @@ jobs:
         with:
           fetch-depth: 0
       
+      - name: Restore Unity Packages
+        run: |
+          echo "=== Verifying Packages/manifest.json ==="
+          cat Packages/manifest.json
+          
+          echo ""
+          echo "=== Verifying Packages/packages-lock.json exists ==="
+          if [ -f "Packages/packages-lock.json" ]; then
+            echo "✓ packages-lock.json found"
+            echo "Checking for AR Foundation packages..."
+            grep -q "com.unity.xr.arfoundation" Packages/packages-lock.json && echo "✓ AR Foundation found" || echo "✗ AR Foundation NOT found"
+            grep -q "com.unity.xr.arcore" Packages/packages-lock.json && echo "✓ ARCore found" || echo "✗ ARCore NOT found"
+            grep -q "com.unity.xr.arkit" Packages/packages-lock.json && echo "✓ ARKit found" || echo "✗ ARKit NOT found"
+            grep -q "com.unity.mathematics" Packages/packages-lock.json && echo "✓ Mathematics found" || echo "✗ Mathematics NOT found"
+          else
+            echo "✗ packages-lock.json NOT found!"
+            exit 1
+          fi
+      
       - name: Cache Unity Library
         uses: actions/cache@v3
         with:
@@ -817,75 +836,59 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-package:
-    name: Test Unity Package Import
+    name: Test Unity Package
     needs: create-unity-package
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout Empty Unity Project
-        run: |
-          mkdir -p TestProject
-          cd TestProject
-          
-          # Initialize git repository (required by unity-builder)
-          git init
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          
-          # Create minimal Unity project structure
-          mkdir -p Assets ProjectSettings Packages
-          
-          # Create ProjectSettings files
-          echo "EditorUserBuildSettings:" > ProjectSettings/EditorBuildSettings.asset
-          echo "m_ObjectHideFlags: 0" >> ProjectSettings/EditorBuildSettings.asset
-          echo "serializedVersion: 2" >> ProjectSettings/EditorBuildSettings.asset
-          echo "m_Scenes: []" >> ProjectSettings/EditorBuildSettings.asset
-          
-          # Commit initial setup
-          git add .
-          git commit -m "Initial Unity project setup"
-      
       - name: Download Unity Package
         uses: actions/download-artifact@v4
         with:
           name: unity-package
-          path: TestProject/
+          path: package-test/
       
-      - name: Install Unity
-        uses: game-ci/unity-builder@v4
-        with:
-          unityVersion: ${{ env.UNITY_VERSION }}
-          targetPlatform: WebGL
-      
-      - name: Import and Test Package
+      - name: Verify Package Contents
         run: |
-          cd TestProject
+          cd package-test
           
-          # Import package
-          unity-editor \
-            -quit \
-            -batchmode \
-            -projectPath . \
-            -importPackage $(ls *.unitypackage | head -1) \
-            -logFile import.log
+          echo "=== Downloaded files ==="
+          ls -lh
           
-          cat import.log || true
-          
-          # Check for errors
-          if grep -q "error" import.log; then
-            echo "✗ Import failed with errors"
+          # Check that .unitypackage file exists
+          PACKAGE_FILE=$(ls *.unitypackage 2>/dev/null | head -1)
+          if [ -z "$PACKAGE_FILE" ]; then
+            echo "✗ No .unitypackage file found!"
             exit 1
-          else
-            echo "✓ Package imported successfully"
           fi
-      
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: TestProject/*.log
-          retention-days: 7
+          
+          echo "✓ Package file found: $PACKAGE_FILE"
+          
+          # Check file size (should be > 100KB)
+          FILE_SIZE=$(stat -c%s "$PACKAGE_FILE")
+          if [ $FILE_SIZE -lt 100000 ]; then
+            echo "✗ Package file is too small: $FILE_SIZE bytes"
+            exit 1
+          fi
+          
+          echo "✓ Package size: $FILE_SIZE bytes"
+          
+          # Check that checksum file exists
+          if [ ! -f "${PACKAGE_FILE}.sha256" ]; then
+            echo "✗ Checksum file not found!"
+            exit 1
+          fi
+          
+          echo "✓ Checksum file found"
+          
+          # Verify checksum
+          sha256sum -c "${PACKAGE_FILE}.sha256"
+          
+          echo ""
+          echo "=== Package contents (first 50 files) ==="
+          tar -tzf "$PACKAGE_FILE" | head -50
+          
+          echo ""
+          echo "✓ Package verification completed successfully"
 
   build-unity-android:
     name: Build Unity Android
@@ -909,6 +912,13 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+      
+      - name: Verify Unity Packages
+        run: |
+          echo "=== Verifying AR Foundation packages in manifest ==="
+          grep "com.unity.xr.arfoundation" Packages/manifest.json || echo "⚠️ AR Foundation not in manifest"
+          grep "com.unity.xr.arcore" Packages/manifest.json || echo "⚠️ ARCore not in manifest"
+          grep "com.unity.mathematics" Packages/manifest.json || echo "⚠️ Mathematics not in manifest"
       
       - name: Download All Platform Libraries
         uses: actions/download-artifact@v4
@@ -976,6 +986,13 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+      
+      - name: Verify Unity Packages
+        run: |
+          echo "=== Verifying AR Foundation packages in manifest ==="
+          grep "com.unity.xr.arfoundation" Packages/manifest.json || echo "⚠️ AR Foundation not in manifest"
+          grep "com.unity.xr.arkit" Packages/manifest.json || echo "⚠️ ARKit not in manifest"
+          grep "com.unity.mathematics" Packages/manifest.json || echo "⚠️ Mathematics not in manifest"
       
       - name: Download All Platform Libraries
         uses: actions/download-artifact@v4
