@@ -337,7 +337,6 @@ GameObject:
   - component: {fileID: 180849703}
   - component: {fileID: 180849704}
   - component: {fileID: 180849705}
-  - component: {fileID: 180849706}
   m_Layer: 0
   m_Name: '@Manager'
   m_TagString: Untagged
@@ -390,12 +389,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Felina.ARColoringBook.ARScannerManager
   _arBridgeComponent: {fileID: 180849703}
-  unwarpMaterial: {fileID: 2100000, guid: de887ff255b52f24eb1590569fcaa106, type: 2}
-  outputResolution: 1024
-  captureThreshold: 0.7
-  autoLock: 1
-  maxMoveSpeed: 0.15
-  maxRotateSpeed: 10
+  _unwarpMaterial: {fileID: 0}
+  _outputResolution: 1024
+  _captureThreshold: 0.85
+  _autoLock: 1
+  _maxMoveSpeed: 0.05
+  _maxRotateSpeed: 5
   _targetList:
   - Name: m-cm-01
     Size: {x: 1, y: 1.4143647}
@@ -424,18 +423,6 @@ MonoBehaviour:
   - ImageName: m-cm-01
     Prefab: {fileID: 7693702908286551309, guid: 1677e4893d6d14245b2f62cd0bfe23e3,
       type: 3}
---- !u!114 &180849706
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 180849699}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5a95fde5bb1c0f847b40fc2d6b96dcb1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Felina.ARColoringBook.LicenseManager
 --- !u!114 &205927755
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -947,20 +934,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
---- !u!114 &1948829692
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7957942350055372586}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 251f2119baf856b4fbfbdaf563c36383, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_WorldSpaceCanvasCamera: {fileID: 0}
-  m_DefaultTexture: {fileID: 0}
 --- !u!114 &1948829693
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -976,7 +949,7 @@ MonoBehaviour:
   <trackablesChanged>k__BackingField:
     m_PersistentCalls:
       m_Calls: []
-  m_SerializedLibrary: {fileID: 11400000, guid: a054e306f30cf364596b0bd0e6d0c01a,
+  m_SerializedLibrary: {fileID: 11400000, guid: c8d8ab4394467dc45b7238eb9fb8cf9a,
     type: 2}
   m_MaxNumberOfMovingImages: 0
   m_TrackedImagePrefab: {fileID: 3312728602301253215, guid: 5d81b097707c58e4b949537763ba4bbe,
@@ -9237,7 +9210,6 @@ GameObject:
   - component: {fileID: 7637194992420271787}
   - component: {fileID: 2237621931707588542}
   - component: {fileID: 1948829693}
-  - component: {fileID: 1948829692}
   m_Layer: 2
   m_Name: XR Origin
   m_TagString: Untagged
