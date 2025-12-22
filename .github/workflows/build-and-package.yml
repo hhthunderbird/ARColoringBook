@@ -22,7 +22,7 @@ on:
         default: '1.0.0'
 
 env:
-  UNITY_VERSION: '6000.0.30f1' # ❌ Missing indentation
+  UNITY_VERSION: '6000.0.30f1'
   PACKAGE_NAME: 'FelinaARColoringBook'
   IOS_LIBRARY_NAME: 'Felina'
 
@@ -311,6 +311,146 @@ jobs:
           mkdir -p ${{ matrix.plugin_path }}
           cp FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }} ${{ matrix.plugin_path }}/
           echo "✓ Copied ${{ matrix.output }} to ${{ matrix.plugin_path }}/"
+      
+      - name: Create Plugin Meta Files
+        shell: bash
+        run: |
+          OUTPUT_FILE="${{ matrix.plugin_path }}/${{ matrix.output }}"
+          
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "✗ Library file not found: $OUTPUT_FILE"
+            exit 1
+          fi
+          
+          echo "Creating .meta file for: $OUTPUT_FILE"
+          
+          # Generate GUID for meta file
+          if command -v uuidgen &> /dev/null; then
+            GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+          else
+            # Fallback: generate pseudo-random GUID on Windows
+            GUID=$(printf '%032x' $RANDOM$RANDOM$RANDOM$RANDOM)
+          fi
+          
+          # Create platform-specific meta file
+          if [ "${{ matrix.platform }}" = "Android" ]; then
+            # Android ARM64 library
+            cat > "${OUTPUT_FILE}.meta" << EOF
+          fileFormatVersion: 2
+          guid: ${GUID}
+          PluginImporter:
+            externalObjects: {}
+            serializedVersion: 2
+            iconMap: {}
+            executionOrder: {}
+            defineConstraints: []
+            isPreloaded: 0
+            isOverridable: 1
+            isExplicitlyReferenced: 0
+            validateReferences: 1
+            platformData:
+            - first:
+                Any: 
+              second:
+                enabled: 0
+                settings: {}
+            - first:
+                Editor: Editor
+              second:
+                enabled: 0
+                settings:
+                  DefaultValueInitialized: true
+            - first:
+                Android: Android
+              second:
+                enabled: 1
+                settings:
+                  CPU: ARM64
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          EOF
+          elif [ "${{ matrix.platform }}" = "macOS" ]; then
+            # macOS library
+            cat > "${OUTPUT_FILE}.meta" << EOF
+          fileFormatVersion: 2
+          guid: ${GUID}
+          PluginImporter:
+            externalObjects: {}
+            serializedVersion: 2
+            iconMap: {}
+            executionOrder: {}
+            defineConstraints: []
+            isPreloaded: 0
+            isOverridable: 1
+            isExplicitlyReferenced: 0
+            validateReferences: 1
+            platformData:
+            - first:
+                Any: 
+              second:
+                enabled: 0
+                settings: {}
+            - first:
+                Editor: Editor
+              second:
+                enabled: 0
+                settings:
+                  CPU: x86_64
+                  DefaultValueInitialized: true
+                  OS: OSX
+            - first:
+                Standalone: OSXUniversal
+              second:
+                enabled: 1
+                settings:
+                  CPU: x86_64
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          EOF
+          elif [ "${{ matrix.platform }}" = "Windows" ]; then
+            # Windows library
+            cat > "${OUTPUT_FILE}.meta" << EOF
+          fileFormatVersion: 2
+          guid: ${GUID}
+          PluginImporter:
+            externalObjects: {}
+            serializedVersion: 2
+            iconMap: {}
+            executionOrder: {}
+            defineConstraints: []
+            isPreloaded: 0
+            isOverridable: 1
+            isExplicitlyReferenced: 0
+            validateReferences: 1
+            platformData:
+            - first:
+                Any: 
+              second:
+                enabled: 0
+                settings: {}
+            - first:
+                Editor: Editor
+              second:
+                enabled: 0
+                settings:
+                  CPU: X86_64
+                  DefaultValueInitialized: true
+                  OS: Windows
+            - first:
+                Standalone: Win64
+              second:
+                enabled: 1
+                settings:
+                  CPU: X86_64
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          EOF
+          fi
+          
+          echo "✓ Created .meta file for ${{ matrix.output }}"
       
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -687,6 +827,11 @@ jobs:
           mkdir -p TestProject
           cd TestProject
           
+          # Initialize git repository (required by unity-builder)
+          git init
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
           # Create minimal Unity project structure
           mkdir -p Assets ProjectSettings Packages
           
@@ -695,6 +840,10 @@ jobs:
           echo "m_ObjectHideFlags: 0" >> ProjectSettings/EditorBuildSettings.asset
           echo "serializedVersion: 2" >> ProjectSettings/EditorBuildSettings.asset
           echo "m_Scenes: []" >> ProjectSettings/EditorBuildSettings.asset
+          
+          # Commit initial setup
+          git add .
+          git commit -m "Initial Unity project setup"
       
       - name: Download Unity Package
         uses: actions/download-artifact@v4
