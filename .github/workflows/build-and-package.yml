@@ -431,18 +431,79 @@ jobs:
               public static void Export()
               {
 <<<<<<< HEAD
+<<<<<<< HEAD
                   string packageName = System.Environment.GetEnvironmentVariable("PACKAGE_NAME") ?? "FelinaARColoringBook";
                   string version = System.Environment.GetEnvironmentVariable("PACKAGE_VERSION") ?? "1.0.0";
                   string outputPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "Builds", $"{packageName}_v{version}.unitypackage");
                   
                   string buildsDir = Path.GetDirectoryName(outputPath);
                   if (!Directory.Exists(buildsDir))
+=======
+                  try
+>>>>>>> 0cd5fb5 (fix(ci): add Library caching and fix package export method)
                   {
-                      Directory.CreateDirectory(buildsDir);
+                      Debug.Log("=== Starting Package Export ===");
+                      
+                      string packageName = Environment.GetEnvironmentVariable("PACKAGE_NAME") ?? "FelinaARColoringBook";
+                      string version = Environment.GetEnvironmentVariable("PACKAGE_VERSION") ?? "1.0.0";
+                      
+                      Debug.Log($"Package Name: {packageName}");
+                      Debug.Log($"Version: {version}");
+                      Debug.Log($"Current Directory: {Directory.GetCurrentDirectory()}");
+                      
+                      // Create Builds directory in the project root
+                      string buildsDir = Path.Combine(Application.dataPath, "..", "Builds");
+                      if (!Directory.Exists(buildsDir))
+                      {
+                          Directory.CreateDirectory(buildsDir);
+                          Debug.Log($"Created Builds directory: {buildsDir}");
+                      }
+                      
+                      string outputPath = Path.Combine(buildsDir, $"{packageName}_v{version}.unitypackage");
+                      Debug.Log($"Output Path: {outputPath}");
+                      
+                      string[] assetPaths = new string[]
+                      {
+                          "Assets/ColouringBook"
+                      };
+                      
+                      // Check if the asset path exists
+                      foreach (string assetPath in assetPaths)
+                      {
+                          if (!Directory.Exists(assetPath) && !File.Exists(assetPath))
+                          {
+                              Debug.LogError($"Asset path does not exist: {assetPath}");
+                              EditorApplication.Exit(1);
+                              return;
+                          }
+                          Debug.Log($"Including: {assetPath}");
+                      }
+                      
+                      Debug.Log("Starting AssetDatabase.ExportPackage...");
+                      AssetDatabase.ExportPackage(
+                          assetPaths,
+                          outputPath,
+                          ExportPackageOptions.Recurse | ExportPackageOptions.IncludeDependencies
+                      );
+                      Debug.Log("AssetDatabase.ExportPackage completed");
+                      
+                      if (File.Exists(outputPath))
+                      {
+                          FileInfo fileInfo = new FileInfo(outputPath);
+                          Debug.Log($"✓ Package exported successfully!");
+                          Debug.Log($"  Path: {outputPath}");
+                          Debug.Log($"  Size: {fileInfo.Length} bytes ({fileInfo.Length / 1024 / 1024} MB)");
+                          EditorApplication.Exit(0);
+                      }
+                      else
+                      {
+                          Debug.LogError($"✗ Package file not found after export: {outputPath}");
+                          EditorApplication.Exit(1);
+                      }
                   }
-                  
-                  string[] assetPaths = new string[]
+                  catch (Exception e)
                   {
+<<<<<<< HEAD
                       "Assets/ColouringBook"
                   };
                   
@@ -529,6 +590,11 @@ jobs:
                       Debug.LogError($"✗ Exception during package export: {e.Message}");
                       Debug.LogError($"Stack trace: {e.StackTrace}");
 >>>>>>> 26cba51 (fix(ci): add Library caching and fix package export method)
+=======
+                      Debug.LogError($"✗ Exception during package export: {e.Message}");
+                      Debug.LogError($"Stack trace: {e.StackTrace}");
+
+>>>>>>> 0cd5fb5 (fix(ci): add Library caching and fix package export method)
                       EditorApplication.Exit(1);
                   }
               }
@@ -537,7 +603,11 @@ jobs:
           
           echo "✓ Created export script"
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+
+>>>>>>> 0cd5fb5 (fix(ci): add Library caching and fix package export method)
           
           # Create meta file for the script
           cat > Assets/Editor/ExportPackage.cs.meta << 'EOF'
@@ -555,7 +625,10 @@ jobs:
           EOF
           
           echo "✓ Created meta file for export script"
+<<<<<<< HEAD
 >>>>>>> 26cba51 (fix(ci): add Library caching and fix package export method)
+=======
+>>>>>>> 0cd5fb5 (fix(ci): add Library caching and fix package export method)
       
       - name: Export Unity Package
         uses: game-ci/unity-builder@v4
@@ -572,7 +645,10 @@ jobs:
           versioning: None
           allowDirtyBuild: true
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 0cd5fb5 (fix(ci): add Library caching and fix package export method)
           customParameters: -quit -nographics -logFile -
       
       - name: Check Unity Logs
@@ -587,7 +663,10 @@ jobs:
           echo "=== Checking for Builds directory ==="
           ls -la Builds/ || echo "No Builds directory"
           ls -la ../Builds/ || echo "No ../Builds directory"
+<<<<<<< HEAD
 >>>>>>> 26cba51 (fix(ci): add Library caching and fix package export method)
+=======
+>>>>>>> 0cd5fb5 (fix(ci): add Library caching and fix package export method)
       
       - name: Verify Package Export
         run: |
