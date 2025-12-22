@@ -561,11 +561,18 @@ jobs:
                 -serial "$UNITY_SERIAL" || true
               
               echo ""
+              echo "=== Refreshing Asset Database ==="
+              unity-editor -quit -batchmode -nographics \
+                -projectPath /workspace \
+                -executeMethod UnityEditor.AssetDatabase.Refresh \
+                -logFile - || true
+              
+              echo ""
               echo "=== Running Package Export ==="
               unity-editor -quit -batchmode -nographics \
                 -projectPath /workspace \
                 -executeMethod ExportPackage.Export \
-                -logFile -
+                -logFile - || echo "Export method failed"
             '
           
           echo "=== Unity execution completed ==="
@@ -710,10 +717,10 @@ jobs:
           
           # Check for errors
           if grep -q "error" import.log; then
-            echo "? Import failed with errors"
+            echo "✗ Import failed with errors"
             exit 1
           else
-            echo "? Package imported successfully"
+            echo "✓ Package imported successfully"
           fi
       
       - name: Upload Test Results
@@ -723,6 +730,157 @@ jobs:
           name: test-results
           path: TestProject/*.log
           retention-days: 7
+
+  build-unity-android:
+    name: Build Unity Android
+    needs: create-unity-package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      
+      - name: Download All Platform Libraries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Organize Plugin Files
+        run: |
+          # Copy all platform libraries
+          if [ -d "artifacts/ios-libraries" ]; then
+            mkdir -p Assets/Plugins/iOS
+            cp -R artifacts/ios-libraries/* Assets/Plugins/iOS/
+          fi
+          
+          if [ -d "artifacts/Windows-library" ]; then
+            mkdir -p Assets/Plugins/x86_64
+            cp -R artifacts/Windows-library/* Assets/Plugins/x86_64/
+          fi
+          
+          if [ -d "artifacts/macOS-library" ]; then
+            mkdir -p Assets/Plugins/macOS
+            cp -R artifacts/macOS-library/* Assets/Plugins/macOS/
+          fi
+          
+          if [ -d "artifacts/Android-library" ]; then
+            mkdir -p Assets/Plugins/Android/libs/arm64-v8a
+            cp -R artifacts/Android-library/* Assets/Plugins/Android/libs/arm64-v8a/
+          fi
+      
+      - name: Cache Unity Library
+        uses: actions/cache@v3
+        with:
+          path: Library
+          key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-Android-
+            Library-
+      
+      - name: Build Android APK
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: Android
+          androidAppBundle: false
+          androidKeystoreName: ${{ secrets.ANDROID_KEYSTORE_NAME }}
+          androidKeystoreBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          androidKeyaliasName: ${{ secrets.ANDROID_KEYALIAS_NAME }}
+          androidKeyaliasPass: ${{ secrets.ANDROID_KEYALIAS_PASS }}
+          versioning: None
+      
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/Android/*.apk
+          retention-days: 30
+
+  build-unity-ios:
+    name: Build Unity iOS
+    needs: create-unity-package
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      
+      - name: Download All Platform Libraries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Organize Plugin Files
+        run: |
+          # Copy all platform libraries
+          if [ -d "artifacts/ios-libraries" ]; then
+            mkdir -p Assets/Plugins/iOS
+            cp -R artifacts/ios-libraries/* Assets/Plugins/iOS/
+          fi
+          
+          if [ -d "artifacts/Windows-library" ]; then
+            mkdir -p Assets/Plugins/x86_64
+            cp -R artifacts/Windows-library/* Assets/Plugins/x86_64/
+          fi
+          
+          if [ -d "artifacts/macOS-library" ]; then
+            mkdir -p Assets/Plugins/macOS
+            cp -R artifacts/macOS-library/* Assets/Plugins/macOS/
+          fi
+          
+          if [ -d "artifacts/Android-library" ]; then
+            mkdir -p Assets/Plugins/Android/libs/arm64-v8a
+            cp -R artifacts/Android-library/* Assets/Plugins/Android/libs/arm64-v8a/
+          fi
+      
+      - name: Cache Unity Library
+        uses: actions/cache@v3
+        with:
+          path: Library
+          key: Library-iOS-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-iOS-
+            Library-
+      
+      - name: Build iOS Xcode Project
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: iOS
+          versioning: None
+      
+      - name: Upload iOS Xcode Project
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcode-project
+          path: build/iOS/
+          retention-days: 30
 
 # Create and push tag
 ## git tag -a v1.0.0 -m "Release v1.0.0"
