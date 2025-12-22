@@ -506,7 +506,7 @@ jobs:
           # Create meta file for the script
           cat > Assets/Editor/ExportPackage.cs.meta << 'EOF'
           fileFormatVersion: 2
-          guid: 12345678901234567890123456789012
+          guid: a1b2c3d4e5f6789012345678901234ab
           MonoImporter:
             externalObjects: {}
             serializedVersion: 2
@@ -519,21 +519,56 @@ jobs:
           EOF
           
           echo "✓ Created meta file for export script"
+          
+          # List the files to confirm creation
+          echo "=== Editor folder contents ==="
+          ls -la Assets/Editor/
+      
+      - name: Verify Export Script
+        run: |
+          echo "=== Verifying export script exists ==="
+          if [ -f "Assets/Editor/ExportPackage.cs" ]; then
+            echo "✓ ExportPackage.cs exists"
+            echo "=== Script content preview ==="
+            head -20 Assets/Editor/ExportPackage.cs
+          else
+            echo "✗ ExportPackage.cs not found!"
+            exit 1
+          fi
       - name: Export Unity Package
-        uses: game-ci/unity-builder@v4
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
-          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
-        with:
-          unityVersion: ${{ env.UNITY_VERSION }}
-          targetPlatform: StandaloneLinux64
-          buildMethod: ExportPackage.Export
-          versioning: None
-          allowDirtyBuild: true
-          customParameters: -quit -nographics -logFile -
+        run: |
+          echo "=== Starting Unity Package Export ==="
+          
+          # Ensure Builds directory exists
+          mkdir -p Builds
+          
+          # Run Unity directly with Docker
+          docker run --rm \
+            --workdir /workspace \
+            -v "$(pwd):/workspace" \
+            -e UNITY_EMAIL="${{ secrets.UNITY_EMAIL }}" \
+            -e UNITY_PASSWORD="${{ secrets.UNITY_PASSWORD }}" \
+            -e UNITY_SERIAL="${{ secrets.UNITY_LICENSE }}" \
+            -e PACKAGE_NAME="${{ env.PACKAGE_NAME }}" \
+            -e PACKAGE_VERSION="${{ steps.version.outputs.version }}" \
+            unityci/editor:ubuntu-6000.0.30f1-base-3 \
+            bash -c '
+              echo "=== Activating Unity ==="
+              unity-editor -quit -batchmode -nographics -silent-crashes \
+                -logFile - \
+                -username "$UNITY_EMAIL" \
+                -password "$UNITY_PASSWORD" \
+                -serial "$UNITY_SERIAL" || true
+              
+              echo ""
+              echo "=== Running Package Export ==="
+              unity-editor -quit -batchmode -nographics \
+                -projectPath /workspace \
+                -executeMethod ExportPackage.Export \
+                -logFile -
+            '
+          
+          echo "=== Unity execution completed ==="
       
       - name: Check Unity Logs
         if: always()
@@ -541,12 +576,27 @@ jobs:
           echo "=== Checking for log files ==="
           find . -name "*.log" -type f -exec echo "Found log: {}" \; -exec cat {} \; || true
           
+          echo ""
+          echo "=== Searching for Export Package logs ==="
+          grep -r "Starting Package Export" . || echo "Export script was NOT executed"
+          grep -r "Package exported successfully" . || echo "Package export did not complete successfully"
+          grep -r "Asset path does not exist" . || echo "No asset path errors found"
+          
+          echo ""
           echo "=== Checking build directory ==="
           ls -la build/ || echo "No build directory"
           
+          echo ""
           echo "=== Checking for Builds directory ==="
           ls -la Builds/ || echo "No Builds directory"
-          ls -la ../Builds/ || echo "No ../Builds directory"
+          
+          echo ""
+          echo "=== Checking workspace root ==="
+          ls -la . | head -20
+          
+          echo ""
+          echo "=== Checking Assets/Editor ==="
+          ls -la Assets/Editor/ || echo "No Assets/Editor directory"
       - name: Verify Package Export
         run: |
           echo "=== Checking for exported package ==="
