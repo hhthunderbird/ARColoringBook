@@ -15,7 +15,7 @@ namespace Felina.ARColoringBook
 #if UNITY_IOS && !UNITY_EDITOR
         [DllImport("__Internal")] private static extern bool CheckStability( float3 f1, quaternion q1, float3 f2, quaternion q2, float f3, float f4, float f5 );
         [DllImport("__Internal")] private static extern float CalculateQuality( float3 f1, float3 f2, float3 f3, float3 f4, float2 f5, float f6, float f7 );
-        [DllImport("__Internal")] private static unsafe extern void CalculateHomography( float f1, float f2, float f3, float f4, void* s, void* r );
+        [DllImport("__Internal")] private static unsafe extern void ComputeTransformMatrix( float f1, float f2, float f3, float f4, void* s, void* r );
 #else
         [DllImport( "Felina" )] private static extern bool CheckStability( float3 f1, quaternion q1, float3 f2, quaternion q2, float f3, float f4, float f5 );
         [DllImport( "Felina" )] private static extern float CalculateQuality( float3 f1, float3 f2, float3 f3, float3 f4, float2 f5, float f6, float f7 );
