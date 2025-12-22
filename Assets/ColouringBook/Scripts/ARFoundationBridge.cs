@@ -31,7 +31,6 @@ namespace Felina.ARColoringBook.Bridges
 
         [Header( "Settings" )]
         private const int MAX_FEED_RES = Internals.MAX_FEED_RES;
-        [SerializeField] private int _outputResolution = Internals.DEFAULT_OUTPUT_RESOLUTION;
 
         private RenderTextureSettings _renderTextureSettings;
         public RenderTextureSettings RenderTextureSettings => _renderTextureSettings;
