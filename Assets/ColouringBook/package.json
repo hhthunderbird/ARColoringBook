@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "displayName": "Felina AR Coloring Book",
   "description": "Professional AR image tracking and texture capture system for creating interactive coloring book experiences. Supports ARFoundation with advanced homography-based image unwarp and real-time texture scanning.",
-  "unity": "2022.3",
+  "unity": "6000.0",
   "keywords": [
     "AR",
     "ARFoundation",
@@ -17,9 +17,10 @@
     "url": "https://github.com/hhthunderbird/ARColoringBook"
   },
   "dependencies": {
-    "com.unity.xr.arfoundation": "5.0.0",
-    "com.unity.xr.arkit": "5.0.0",
-    "com.unity.mathematics": "1.2.6"
+    "com.unity.xr.arfoundation": "6.3.1",
+    "com.unity.xr.arkit": "6.3.1",
+    "com.unity.xr.arcore": "6.3.1",
+    "com.unity.mathematics": "1.3.3"
   },
   "samples": [
     {
