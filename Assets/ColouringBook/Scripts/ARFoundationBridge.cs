@@ -20,19 +20,19 @@ namespace Felina.ARColoringBook.Bridges
         private ARTrackedImageManager _aRTrackedImageManager;
         public ARTrackedImageManager ARTrackedImageManager => _aRTrackedImageManager;
 
-        public ARCameraManager cameraManager;
+        [SerializeField] private ARCameraManager _cameraManager;
         [SerializeField] private ARCameraBackground _arCameraBackground;
-        public Camera arCamera;
+        [SerializeField] private Camera _arCamera;
 
         private int _lastFrameBlitted = -1;
         private RenderTexture _sharedCameraRT;
 
-        private HashSet<TrackableId> _pendingAdds = new HashSet<TrackableId>();
+        private HashSet<TrackableId> _pendingAdds = new();
 
         [Header( "Settings" )]
         private const int MAX_FEED_RES = Internals.MAX_FEED_RES;
 
-        private RenderTextureSettings _renderTextureSettings;
+        [SerializeField] private RenderTextureSettings _renderTextureSettings;
         public RenderTextureSettings RenderTextureSettings => _renderTextureSettings;
 
         public event Action<ScanTarget> OnTargetAdded;
@@ -40,9 +40,9 @@ namespace Felina.ARColoringBook.Bridges
         private void Awake()
         {
             if ( !_aRTrackedImageManager ) _aRTrackedImageManager = FindAnyObjectByType<ARTrackedImageManager>();
-            if ( !cameraManager ) cameraManager = FindAnyObjectByType<ARCameraManager>();
+            if ( !_cameraManager ) _cameraManager = FindAnyObjectByType<ARCameraManager>();
             if ( !_arCameraBackground ) _arCameraBackground = FindAnyObjectByType<ARCameraBackground>();
-            if ( !arCamera ) arCamera = Camera.main;
+            if ( !_arCamera ) _arCamera = Camera.main;
         }
 
         private void Start()
@@ -53,9 +53,9 @@ namespace Felina.ARColoringBook.Bridges
             var h = Screen.height;
             if ( w > MAX_FEED_RES || h > MAX_FEED_RES )
             {
-                var aspect = (float) w / h;
-                if ( w > h ) { w = MAX_FEED_RES; h = (int) ( w / aspect ); }
-                else { h = MAX_FEED_RES; w = (int) ( h * aspect ); }
+                var aspect = ( float ) w / h;
+                if ( w > h ) { w = MAX_FEED_RES; h = ( int ) ( w / aspect ); }
+                else { h = MAX_FEED_RES; w = ( int ) ( h * aspect ); }
             }
 
             var format = RenderTextureFormat.RGB565;
@@ -109,14 +109,14 @@ namespace Felina.ARColoringBook.Bridges
             }
 
             foreach ( var img in args.removed )
-                _pendingAdds.Remove( img.Key );            
+                _pendingAdds.Remove( img.Key );
         }
 
         private void BroadcastTargetAdded( ARTrackedImage img )
         {
             var target = new ScanTarget
             {
-                Name = img.referenceImage.name,
+                Name = img.referenceImage.texture.name,
                 Size = img.size,
                 Transform = img.transform,
                 IsTracking = img.trackingState == TrackingState.Tracking,
@@ -127,7 +127,7 @@ namespace Felina.ARColoringBook.Bridges
 
         public Camera GetARCamera()
         {
-            return arCamera;
+            return _arCamera;
         }
 
         public RenderTexture GetCameraFeedRT()

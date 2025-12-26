@@ -51,6 +51,10 @@ namespace Felina.ARColoringBook
         private void Awake()
         {
             Instance = this;
+
+            if ( _arBridgeComponent is IARBridge bridge ) _arBridge = bridge;
+            else Debug.LogError( "[Felina] ARScannerManager: AR Bridge component does not implement IARBridge!" );
+
             _activeTargets.Clear();
             foreach ( var t in _targetList )
             {
@@ -96,6 +100,7 @@ namespace Felina.ARColoringBook
                 if ( target.Transform == null ) continue;
 
                 var score = GetNativeQuality( target.Transform );
+
                 if ( !_bestScores.ContainsKey( target.Name ) ) _bestScores[ target.Name ] = 0f;
 
                 if ( score > _bestScores[ target.Name ] )
@@ -152,7 +157,7 @@ namespace Felina.ARColoringBook
             }
 
             _unwarpMaterial.SetTexture( "_MainTex", source );
-            _unwarpMaterial.SetMatrix( "_Homography", H );
+            _unwarpMaterial.SetMatrix( "_Unwarp", H );
             _unwarpMaterial.SetMatrix( "_DisplayMatrix", Matrix4x4.identity );
             Graphics.Blit( null, destRT, _unwarpMaterial );
 
