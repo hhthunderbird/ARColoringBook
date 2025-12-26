@@ -1,13 +1,9 @@
 using UnityEngine;
-using UnityEngine.XR.ARSubsystems;
 
 namespace Felina.ARColoringBook
 {
     public class ARPaintableObject : MonoBehaviour
     {
-        [Header( "AR Configuration" )]
-        public XRReferenceImageLibrary referenceLibrary;
-
         [SerializeField, HideInInspector]
         private string _referenceImageName;
 
