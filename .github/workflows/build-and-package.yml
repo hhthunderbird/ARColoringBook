@@ -352,20 +352,38 @@ jobs:
           
           # Check alignment using readelf
           echo ""
-          echo "=== LOAD Segment Alignment ==="
+          echo "=== LOAD Segment Details ==="
           if command -v readelf &> /dev/null; then
-            readelf -l "$LIB_PATH" | grep -A 2 "LOAD" || echo "No LOAD segments found"
+            # Show full LOAD segment info
+            readelf -l "$LIB_PATH" | grep -A 1 "LOAD"
             
-            # Extract alignment values and verify 16KB (0x4000)
-            ALIGNMENT=$(readelf -l "$LIB_PATH" | grep "LOAD" | awk '{print $NF}' | head -1)
             echo ""
-            echo "Detected alignment: $ALIGNMENT"
+            echo "=== Extracting Alignment Values ==="
+            # The alignment is the LAST column in the LOAD line (after R/W/E flags)
+            # Format: LOAD  0xoffset 0xvaddr 0xpaddr 0xfilesz 0xmemsz  FLAGS  0xALIGN
+            ALIGNMENTS=$(readelf -l "$LIB_PATH" | grep "LOAD" | awk '{print $NF}')
             
-            if [ "$ALIGNMENT" = "0x4000" ]; then
-              echo "✓ Library is correctly aligned to 16KB (0x4000)"
+            echo "All LOAD segment alignments:"
+            echo "$ALIGNMENTS"
+            
+            # Check if any alignment is NOT 16KB (0x4000)
+            FAILED=0
+            while IFS= read -r ALIGN; do
+              if [ "$ALIGN" = "0x4000" ]; then
+                echo "✓ Found correct 16KB alignment: $ALIGN"
+              else
+                echo "✗ WARNING: Found incorrect alignment: $ALIGN (expected 0x4000)"
+                FAILED=1
+              fi
+            done <<< "$ALIGNMENTS"
+            
+            if [ $FAILED -eq 0 ]; then
+              echo ""
+              echo "✓ All LOAD segments correctly aligned to 16KB (0x4000)"
             else
-              echo "✗ WARNING: Library alignment is $ALIGNMENT, expected 0x4000 (16KB)"
-              echo "This may cause issues on Android 15+ devices!"
+              echo ""
+              echo "✗ ERROR: Library has incorrect alignment for Android 15+"
+              echo "This will cause crashes on devices with 16KB page size!"
               exit 1
             fi
           else
@@ -373,7 +391,7 @@ jobs:
           fi
           
           echo ""
-          echo "=== Section Headers ==="
+          echo "=== Section Headers Summary ==="
           readelf -S "$LIB_PATH" | head -20 || true
       
       - name: Create Plugin Meta Files
