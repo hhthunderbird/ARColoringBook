@@ -29,12 +29,15 @@ namespace Felina.ARColoringBook
     {
         event Action<ScanTarget> OnTargetAdded;
 
-        RenderTexture GetCameraFeedRT();
+        void SetTargetRenderTexture( RenderTexture targetRT );
+        void GetCameraFeedRT();
 
-        // We need the Camera to calculate Screen Points (WorldToScreenPoint)
         Camera GetARCamera();
 
         RenderTextureSettings RenderTextureSettings { get; }
         ARTrackedImageManager ARTrackedImageManager { get; }
+
+        //TODO: Remove dependency on ARFoundation types
+        ARCameraBackground GetARCameraBackground();
     }
 }

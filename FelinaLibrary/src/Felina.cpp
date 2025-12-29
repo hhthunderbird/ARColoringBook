@@ -17,8 +17,8 @@
 
 // XOR obfuscation helper
 void XorString(char* buffer, const char* source, int len, char key) {
-    for (int i = 0; i < len; i++) buffer[i] = source[i] ^ key;
-    buffer[len] = '\0';
+	for (int i = 0; i < len; i++) buffer[i] = source[i] ^ key;
+	buffer[len] = '\0';
 }
 
 
@@ -190,59 +190,26 @@ extern "C" {
 #endif
 	}
 
-	//EXPORT_API bool UnlockLibrary(const char* invoice, const char* key) {
-	//	char salt[20]; // Increased size for safety
-	//	const char encSalt[] = {
-	//		0xDF, 0xDC, 0xD5, 0xD0, 0xD7, 0xD8, // FELINA
-	//		0xC6,                               // _ (0x5F ^ 0x99 = 0xC6)
-	//		0xAB, 0xA9, 0xAB, 0xAC,             // 2025 ("2","0","2","5")
-	//		0xC6,                               // _ (0x5F ^ 0x99 = 0xC6)
-	//		0xCA, 0xDC, 0xDA, 0xCC, 0xCB, 0xDC, // SECURE
-	//		0x99                                // NULL TERMINATOR (0x00 ^ 0x99 = 0x99)
-	//	};
-
-	//	// Decrypt the salt
-	//	for (int i = 0; i < sizeof(encSalt); i++) {
-	//		salt[i] = encSalt[i] ^ 0x99;
-	//	}
-
-	//	// DJB2 HASH
-	//	unsigned long long hash = 5381;
-	//	int c;
-
-	//	// 1. Hash Invoice
-	//	const char* p = invoice;
-	//	while ((c = *p++)) hash = ((hash << 5) + hash) + c;
-
-	//	// 2. Hash Salt (Now safe because salt ends with \0)
-	//	p = salt;
-	//	while ((c = *p++)) hash = ((hash << 5) + hash) + c;
-
-	//	// 3. Verify
-	//	unsigned long long userKey = 0;
-	//	if (sscanf(key, "%llu", &userKey) == 1) {
-	//		if (userKey == hash) {
-	//			return true;
-	//		}
-	//	}
-	//	return false;
-	//}
-
 	// --- NEW: Internal Helper for Aspect Ratio (Hidden logic) ---
-	static inline void ComputeUVs(float width, float height, Float2* uvs) {
-		float ratio = width / height;
+	static inline void ComputeUVs(Float2* uvs) {
+		//float ratio = width / height;
+		//float uMin, uMax, vMin, vMax;
+
+		//if (ratio < 1.0f) { // Portrait
+		//	float s = 1.0f / ratio;
+		//	vMin = (1.0f - s) * 0.5f; vMax = vMin + s;
+		//	uMin = 0.0f; uMax = 1.0f;
+		//}
+		//else { // Landscape
+		//	float s = ratio;
+		//	uMin = (1.0f - s) * 0.5f; uMax = uMin + s;
+		//	vMin = 0.0f; vMax = 1.0f;
+		//}
+
 		float uMin, uMax, vMin, vMax;
 
-		if (ratio < 1.0f) { // Portrait
-			float s = 1.0f / ratio;
-			vMin = (1.0f - s) * 0.5f; vMax = vMin + s;
-			uMin = 0.0f; uMax = 1.0f;
-		}
-		else { // Landscape
-			float s = ratio;
-			uMin = (1.0f - s) * 0.5f; uMax = uMin + s;
-			vMin = 0.0f; vMax = 1.0f;
-		}
+		uMin = 0.0f; uMax = uMin + 1.0f;
+		vMin = 0.0f; vMax = 1.0f;
 
 		uvs[0] = { uMin, vMin };
 		uvs[1] = { uMax, vMin };
@@ -341,10 +308,9 @@ extern "C" {
 		return (angleScore * 0.6f) + (centerScore * 0.4f * distScore);
 	}
 
-    // --- STEP 4: HOMOGRAPHY CALCULATION ---
-    // Generic transform matrix computation from image -> screen quad
-    EXPORT_API void ComputeTransformMatrix(
-		float imgW, float imgH,         // Physical Image Size
+	// --- STEP 4: HOMOGRAPHY CALCULATION ---
+	// Generic transform matrix computation from image -> screen quad
+	EXPORT_API void ComputeTransformMatrix(
 		float screenW, float screenH,   // Screen Resolution
 		Float2* rawScreenPoints,        // Raw Pixel Coordinates (Not Normalized)
 		Float4x4* result                // Output Matrix
@@ -364,7 +330,7 @@ extern "C" {
 
 		// 1. Calculate UVs internally (Hidden from C#)
 		Float2 src[4];
-		ComputeUVs(imgW, imgH, src);
+		ComputeUVs(src);
 
 		// 2. Normalize Screen Points internally
 		Float2 dst[4];

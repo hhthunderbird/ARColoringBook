@@ -31,6 +31,27 @@ else()
     )
 endif()
 
+# Android 15+ Compatibility: 16KB Page Alignment
+# Required for ARM64 devices running Android 15 or later
+if(ANDROID)
+    message(STATUS "Applying Android 15+ 16KB alignment flags")
+    
+    # Linker flags for 16KB page alignment
+    target_link_options(Felina PRIVATE
+        -Wl,-z,max-page-size=16384
+    )
+    
+    # Compiler flags to ensure proper section alignment
+    target_compile_options(Felina PRIVATE
+        -fno-short-enums
+    )
+    
+    # Set minimum Android API level to 21+ for compatibility
+    if(ANDROID_PLATFORM_LEVEL LESS 21)
+        message(WARNING "Android API level should be 21 or higher for optimal compatibility")
+    endif()
+endif()
+
 # Set Unity plugin output directories when building with CMake
 # Only set these if CMAKE_INSTALL_PREFIX is not explicitly set (i.e., for local builds)
 # For CI/CD builds with install prefix, skip these to allow proper install step

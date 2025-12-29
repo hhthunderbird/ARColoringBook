@@ -1,42 +1,38 @@
 using UnityEngine;
-using UnityEngine.XR.ARSubsystems;
+using UnityEngine.XR.ARFoundation;
 
 namespace Felina.ARColoringBook
 {
     public class ARPaintableObject : MonoBehaviour
     {
-        [Header( "AR Configuration" )]
-        public XRReferenceImageLibrary referenceLibrary;
-
-        [SerializeField, HideInInspector]
-        private string _referenceImageName;
-
         [Header( "Material Settings" )]
-        [Tooltip( "Material index to apply texture to. Usually 0." )]
-        public int materialIndex = 0;
+        [SerializeField, Tooltip( "Material index to apply texture to. Usually 0." )]
+        private int _materialIndex = 0;
 
-        [Tooltip( "The property name in your shader. For Felina Multiply, use '_DrawingTex'." )]
-        public string texturePropertyName = "_DrawingTex";
-
+        private readonly string _texturePropertyName = "_DrawingTex";
         private Renderer _renderer;
+        private string _referenceImageName;
 
         void Start()
         {
             _renderer = GetComponentInChildren<Renderer>();
 
-            if ( string.IsNullOrEmpty( _referenceImageName ) )
+            // Auto-detect image name from ARTrackedImage parent
+            var trackedImage = GetComponentInParent<ARTrackedImage>();
+            if ( trackedImage != null && ARScannerManager.Instance != null )
             {
-                //Debug.LogWarning( $"[Felina] {name} has no Reference Image selected!" );
-                return;
-            }
-
-            if ( ARScannerManager.Instance != null )
-            {
-                ARScannerManager.Instance.OnTextureCaptured += OnTextureReceived;
-                var cachedTex = ARScannerManager.Instance.GetCapturedTexture( _referenceImageName );
-                if ( cachedTex != null )
+                _referenceImageName = ARScannerManager.Instance.GetImageName( trackedImage.referenceImage.guid );
+                
+                if ( !string.IsNullOrEmpty( _referenceImageName ) )
                 {
-                    OnTextureReceived( _referenceImageName, cachedTex, 1.0f );
+                    ARScannerManager.Instance.OnTextureCaptured += OnTextureReceived;
+                    
+                    // Check for existing texture (late join)
+                    var cachedTex = ARScannerManager.Instance.GetCapturedTexture( _referenceImageName );
+                    if ( cachedTex != null )
+                    {
+                        OnTextureReceived( _referenceImageName, cachedTex, 1.0f );
+                    }
                 }
             }
         }
@@ -55,38 +51,87 @@ namespace Felina.ARColoringBook
 
             if ( _renderer == null )
             {
-                Debug.LogWarning( $"[Felina] ARPaintableObject: Renderer missing on '{name}' when receiving texture for '{targetName}'" );
+                Debug.LogWarning( $"[Felina] ARPaintableObject: Renderer is null on '{gameObject.name}'" );
+                return;
+            }
+            
+            // Get the material to check shader properties
+            var sharedMats = _renderer.sharedMaterials;
+            if ( _materialIndex < 0 || _materialIndex >= sharedMats.Length )
+            {
+                Debug.LogWarning( $"[Felina] ARPaintableObject: Material index {_materialIndex} out of range on '{gameObject.name}'" );
+                return;
+            }
+            
+            var mat = sharedMats[ _materialIndex ];
+            if ( mat == null )
+            {
+                Debug.LogWarning( $"[Felina] ARPaintableObject: Material at index {_materialIndex} is null on '{gameObject.name}'" );
                 return;
             }
 
-            // Use MaterialPropertyBlock to avoid creating material instances at runtime.
+            // Use MaterialPropertyBlock to avoid creating material instances
             var mpb = new MaterialPropertyBlock();
-            _renderer.GetPropertyBlock( mpb );
+            _renderer.GetPropertyBlock( mpb, _materialIndex );
 
-            // Try candidate property names and set the first that exists on the renderer's material.
-            string[] candidates = new string[] { texturePropertyName, "_BaseMap", "_MainTex" };
-            foreach ( var prop in candidates )
+            // Try candidate property names in order of preference
+            string[] candidates = { _texturePropertyName, "_BaseMap", "_MainTex", "_DrawingTex" };
+            bool textureSet = false;
+            
+            foreach ( var propName in candidates )
             {
-                if ( string.IsNullOrEmpty( prop ) ) continue;
-                // We can't call HasProperty on MaterialPropertyBlock, so check the shared material instead
-                var sharedMats = _renderer.sharedMaterials;
-                if ( materialIndex < 0 || materialIndex >= sharedMats.Length )
+                if ( string.IsNullOrEmpty( propName ) ) continue;
+                
+                if ( mat.HasProperty( propName ) )
                 {
-                    // Invalid index
-                    return;
-                }
-                var sharedMat = sharedMats[ materialIndex ];
-                if ( sharedMat != null && sharedMat.HasProperty( prop ) )
-                {
-                    mpb.SetTexture( prop, newTexture );
-                    _renderer.SetPropertyBlock( mpb );
-                    return;
+                    mpb.SetTexture( propName, newTexture );
+                    textureSet = true;
+                    // Debug.Log( $"[Felina] ARPaintableObject: Set texture on property '{propName}' for '{gameObject.name}'" );
+                    break;
                 }
             }
+            
+            if ( !textureSet )
+            {
+                Debug.LogWarning( $"[Felina] ARPaintableObject: None of the texture properties found on material '{mat.name}'. Available properties: {string.Join( ", ", GetShaderPropertyNames( mat ) )}" );
+                // Set anyway as fallback
+                mpb.SetTexture( _texturePropertyName, newTexture );
+            }
 
-            // Fallback: set to requested property name without checks
-            mpb.SetTexture( texturePropertyName, newTexture );
-            _renderer.SetPropertyBlock( mpb );
+            // CRITICAL FIX: Ensure the material's base color/tint is white (not black)
+            // This is often why objects appear black - the color multiplier is set to black
+            if ( mat.HasProperty( "_Color" ) )
+            {
+                mpb.SetColor( "_Color", Color.white );
+            }
+            if ( mat.HasProperty( "_BaseColor" ) )
+            {
+                mpb.SetColor( "_BaseColor", Color.white );
+            }
+            if ( mat.HasProperty( "_TintColor" ) )
+            {
+                mpb.SetColor( "_TintColor", Color.white );
+            }
+
+            // Apply the property block
+            _renderer.SetPropertyBlock( mpb, _materialIndex );
+            
+            // Debug.Log( $"[Felina] ARPaintableObject: Successfully applied texture for '{targetName}' on '{gameObject.name}'" );
+        }
+
+        // Helper method to get shader property names for debugging
+        private string[] GetShaderPropertyNames( Material mat )
+        {
+            var shader = mat.shader;
+            int propCount = shader.GetPropertyCount();
+            var propNames = new string[ propCount ];
+            
+            for ( int i = 0; i < propCount; i++ )
+            {
+                propNames[ i ] = shader.GetPropertyName( i );
+            }
+            
+            return propNames;
         }
     }
 }

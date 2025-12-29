@@ -7,9 +7,15 @@ LOCAL_SRC_FILES := src/Felina.cpp
 APP_ABI := arm64-v8a
 APP_PLATFORM := android-21
 APP_OPTIM := release
-# Force aggressive optimization and NEON support
+
+# Optimization flags
 APP_CFLAGS += -O3 -ffast-math -flto
 APP_CPPFLAGS += -O3 -ffast-math -flto
+
+# Android 15+ Compatibility: 16KB Page Alignment
+# Required for ARM64 devices running Android 15 or later
+LOCAL_CFLAGS += -fno-short-enums
+LOCAL_LDFLAGS += -Wl,-z,max-page-size=16384
 
 include $(BUILD_SHARED_LIBRARY)
 
