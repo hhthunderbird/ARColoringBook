@@ -1,47 +1,136 @@
+name: Build iOS/macOS Libraries and Unity Apps
+
+permissions:
+  contents: write
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  UNITY_VERSION: '6000.0.30f1'
+  IOS_LIBRARY_NAME: 'Felina'
+
+jobs:
+  build-ios-library:
+    name: Build iOS Native Library
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      
+      - name: Install CMake
+        run: |
+          brew install cmake ninja
+      
+      - name: Cache iOS Build
+        uses: actions/cache@v3
+        with:
+          path: FelinaLibrary/build/ios
+          key: ${{ runner.os }}-ios-build-${{ hashFiles('FelinaLibrary/**') }}
+          restore-keys: ${{ runner.os }}-ios-build-
+      
+      - name: Build iOS Static Library (arm64)
+        run: |
+          cd FelinaLibrary
+          mkdir -p build/ios
+          cd build/ios
+          cmake ../.. -G Ninja -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake -DPLATFORM=OS64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/ios -DENABLE_BITCODE=OFF -DENABLE_ARC=ON
+          ninja
+          ninja install
+          echo "? iOS arm64 library built successfully"
+      
+      - name: Build iOS Simulator Library (arm64)
+        run: |
+          cd FelinaLibrary
+          mkdir -p build/ios-simulator
+          cd build/ios-simulator
+          cmake ../.. -G Ninja -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/ios-simulator -DENABLE_BITCODE=OFF -DENABLE_ARC=ON
+          ninja
+          ninja install
+          echo "? iOS Simulator library built successfully"
+      
+      - name: Create XCFramework
+        run: |
+          cd FelinaLibrary
+          mkdir -p install/ios-universal
+          xcodebuild -create-xcframework -library install/ios/lib/lib${IOS_LIBRARY_NAME}.a -library install/ios-simulator/lib/lib${IOS_LIBRARY_NAME}.a -output install/ios-universal/${IOS_LIBRARY_NAME}.xcframework
+          echo "? XCFramework created successfully"
+      
+      - name: Verify XCFramework
+        run: |
+          cd FelinaLibrary/install/ios-universal
+          echo "=== XCFramework Info ==="
+          if [ -d "${IOS_LIBRARY_NAME}.xcframework" ]; then
+            find ${IOS_LIBRARY_NAME}.xcframework -name "*.a" -exec file {} \;
+            find ${IOS_LIBRARY_NAME}.xcframework -name "*.a" -exec lipo -info {} \;
+          fi
+      
+      - name: Copy to Unity Plugins
+        run: |
+          mkdir -p Assets/Plugins/iOS
+          if [ -d "FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework" ]; then
+            cp -R FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework Assets/Plugins/iOS/
+            echo "? Copied xcframework to Assets/Plugins/iOS/"
+          else
+            echo "? XCFramework not found!"
+            exit 1
+          fi
       
       - name: Create Plugin Meta File
         run: |
           if [ -d "Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework" ]; then
-            cat > Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta << 'EOF'
-fileFormatVersion: 2
-guid: PLACEHOLDER_GUID
-PluginImporter:
-  externalObjects: {}
-  serializedVersion: 2
-  iconMap: {}
-  executionOrder: {}
-  defineConstraints: []
-  isPreloaded: 0
-  isOverridable: 0
-  isExplicitlyReferenced: 0
-  validateReferences: 1
-  platformData:
-  - first:
-      Any: 
-    second:
-      enabled: 0
-      settings: {}
-  - first:
-      Editor: Editor
-    second:
-      enabled: 0
-      settings:
-        DefaultValueInitialized: true
-  - first:
-      iPhone: iOS
-    second:
-      enabled: 1
-      settings: {}
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
-EOF
-            
-            # Replace placeholder with actual GUID
             GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
-            sed -i.bak "s/PLACEHOLDER_GUID/${GUID}/g" Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta
-            rm -f Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta.bak
-            
+            cat > Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta <<METAFILE
+          fileFormatVersion: 2
+          guid: ${GUID}
+          PluginImporter:
+            externalObjects: {}
+            serializedVersion: 2
+            iconMap: {}
+            executionOrder: {}
+            defineConstraints: []
+            isPreloaded: 0
+            isOverridable: 0
+            isExplicitlyReferenced: 0
+            validateReferences: 1
+            platformData:
+            - first:
+                Any: 
+              second:
+                enabled: 0
+                settings: {}
+            - first:
+                Editor: Editor
+              second:
+                enabled: 0
+                settings:
+                  DefaultValueInitialized: true
+            - first:
+                iPhone: iOS
+              second:
+                enabled: 1
+                settings: {}
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          METAFILE
             echo "? Created xcframework .meta file"
           fi
       
@@ -57,9 +146,7 @@ EOF
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "GitHub Actions"
-          
           git add Assets/Plugins/iOS/
-          
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
@@ -79,22 +166,16 @@ EOF
           submodules: recursive
       
       - name: Install CMake
-        run: |
-          brew install cmake ninja
+        run: brew install cmake ninja
       
       - name: Build macOS Library
         run: |
           cd FelinaLibrary
           mkdir -p build/macOS
           cd build/macOS
-          
-          cmake ../.. -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=../../install/macOS
-          
+          cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/macOS
           ninja
           ninja install
-          
           echo "? macOS library built successfully"
       
       - name: Copy to Unity Plugins
@@ -105,49 +186,44 @@ EOF
       
       - name: Create Plugin Meta File
         run: |
-          cat > Assets/Plugins/macOS/libFelina.dylib.meta << 'EOF'
-fileFormatVersion: 2
-guid: PLACEHOLDER_GUID
-PluginImporter:
-  externalObjects: {}
-  serializedVersion: 2
-  iconMap: {}
-  executionOrder: {}
-  defineConstraints: []
-  isPreloaded: 0
-  isOverridable: 1
-  isExplicitlyReferenced: 0
-  validateReferences: 1
-  platformData:
-  - first:
-      Any: 
-    second:
-      enabled: 0
-      settings: {}
-  - first:
-      Editor: Editor
-    second:
-      enabled: 0
-      settings:
-        CPU: x86_64
-        DefaultValueInitialized: true
-        OS: OSX
-  - first:
-      Standalone: OSXUniversal
-    second:
-      enabled: 1
-      settings:
-        CPU: x86_64
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
-EOF
-          
-          # Replace placeholder with actual GUID
           GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
-          sed -i.bak "s/PLACEHOLDER_GUID/${GUID}/g" Assets/Plugins/macOS/libFelina.dylib.meta
-          rm -f Assets/Plugins/macOS/libFelina.dylib.meta.bak
-          
+          cat > Assets/Plugins/macOS/libFelina.dylib.meta <<METAFILE
+          fileFormatVersion: 2
+          guid: ${GUID}
+          PluginImporter:
+            externalObjects: {}
+            serializedVersion: 2
+            iconMap: {}
+            executionOrder: {}
+            defineConstraints: []
+            isPreloaded: 0
+            isOverridable: 1
+            isExplicitlyReferenced: 0
+            validateReferences: 1
+            platformData:
+            - first:
+                Any: 
+              second:
+                enabled: 0
+                settings: {}
+            - first:
+                Editor: Editor
+              second:
+                enabled: 0
+                settings:
+                  CPU: x86_64
+                  DefaultValueInitialized: true
+                  OS: OSX
+            - first:
+                Standalone: OSXUniversal
+              second:
+                enabled: 1
+                settings:
+                  CPU: x86_64
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          METAFILE
           echo "? Created .meta file"
       
       - name: Upload macOS Library
@@ -180,9 +256,7 @@ EOF
         with:
           path: Library
           key: Library-iOS-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: |
-            Library-iOS-
-            Library-
+          restore-keys: Library-iOS-
       
       - name: Build iOS Xcode Project
         uses: game-ci/unity-builder@v4
@@ -229,9 +303,7 @@ EOF
         with:
           path: Library
           key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: |
-            Library-Android-
-            Library-
+          restore-keys: Library-Android-
       
       - name: Build Android APK
         uses: game-ci/unity-builder@v4
