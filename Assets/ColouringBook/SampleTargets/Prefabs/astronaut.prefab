@@ -43,7 +43,7 @@ GameObject:
   - component: {fileID: 1531421881166806364}
   - component: {fileID: -6667401420729949418}
   m_Layer: 0
-  m_Name: m-cm-01
+  m_Name: astronaut
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
