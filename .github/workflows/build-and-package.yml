@@ -2,9 +2,9 @@
       - name: Create Plugin Meta File
         run: |
           if [ -d "Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework" ]; then
-            cat > Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta << EOF
+            cat > Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta << 'EOF'
           fileFormatVersion: 2
-          guid: $(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+          guid: PLACEHOLDER_GUID
           PluginImporter:
             externalObjects: {}
             serializedVersion: 2
@@ -36,6 +36,12 @@
             assetBundleName: 
             assetBundleVariant: 
           EOF
+            
+            # Replace placeholder with actual GUID
+            GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+            sed -i '' "s/PLACEHOLDER_GUID/${GUID}/g" Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta 2>/dev/null || \
+            sed -i "s/PLACEHOLDER_GUID/${GUID}/g" Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta
+            
             echo "? Created xcframework .meta file"
           fi
       
@@ -99,9 +105,9 @@
       
       - name: Create Plugin Meta File
         run: |
-          cat > Assets/Plugins/macOS/libFelina.dylib.meta << EOF
+          cat > Assets/Plugins/macOS/libFelina.dylib.meta << 'EOF'
           fileFormatVersion: 2
-          guid: $(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+          guid: PLACEHOLDER_GUID
           PluginImporter:
             externalObjects: {}
             serializedVersion: 2
@@ -136,6 +142,12 @@
             assetBundleName: 
             assetBundleVariant: 
           EOF
+          
+          # Replace placeholder with actual GUID
+          GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+          sed -i '' "s/PLACEHOLDER_GUID/${GUID}/g" Assets/Plugins/macOS/libFelina.dylib.meta 2>/dev/null || \
+          sed -i "s/PLACEHOLDER_GUID/${GUID}/g" Assets/Plugins/macOS/libFelina.dylib.meta
+          
           echo "? Created .meta file"
       
       - name: Upload macOS Library
