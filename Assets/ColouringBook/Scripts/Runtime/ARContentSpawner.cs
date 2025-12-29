@@ -30,6 +30,8 @@ namespace Felina.ARColoringBook
             Debug.Log( $"[Felina] ARContentSpawner: OnValidate called on '{gameObject.name}'" );
             if ( TryGetComponent<ARTrackedImageManager>( out var libraryManager ) )
             {
+                libraryManager.trackedImagePrefab = null;
+
                 for ( int i = 0; i < libraryManager.referenceLibrary.count; i++ )
                 {
                     var imgRef = libraryManager.referenceLibrary[ i ];

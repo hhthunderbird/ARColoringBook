@@ -6,8 +6,8 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/ImageTracking/BasicImageTracking/BasicImageTracking.unity
-    guid: e0b018a3c3b5cfd4c8e316706ec0a18c
+    path: Assets/ColouringBook/Scenes/ARFoundationSample.unity
+    guid: d97bfd586cf099d45a925f115b95aa4e
   m_configObjects:
     Unity.XR.WindowsMR.Settings: {fileID: 11400000, guid: c52d3bb36b4c86f47af54ab9c7a02589,
       type: 2}

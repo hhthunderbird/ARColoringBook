@@ -192,6 +192,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 918220389}
+    - targetCorrespondingSourceObject: {fileID: 7957942351869948125, guid: 8f2c1ffdafd49a943ac79dc0ff480220,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 918220395}
   m_SourcePrefab: {fileID: 100100000, guid: 8f2c1ffdafd49a943ac79dc0ff480220, type: 3}
 --- !u!114 &918220385 stripped
 MonoBehaviour:
@@ -247,8 +251,24 @@ MonoBehaviour:
   m_SerializedLibrary: {fileID: 11400000, guid: c86e375d7e7430442a1104e88fa21f21,
     type: 2}
   m_MaxNumberOfMovingImages: 1
-  m_TrackedImagePrefab: {fileID: 7693702908286551309, guid: 1677e4893d6d14245b2f62cd0bfe23e3,
-    type: 3}
+  m_TrackedImagePrefab: {fileID: 0}
+--- !u!114 &918220395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 918220388}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fe2c0778e7887a408ee1bc22163c596, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Felina.ARColoringBook.ARContentSpawner
+  _prefabImagePairs:
+  - name: marker
+    imageGuid: 856699c7-1f21-412e-94d0-3d33cf1bb4ba
+    prefab: {fileID: 7693702908286551309, guid: 1677e4893d6d14245b2f62cd0bfe23e3,
+      type: 3}
 --- !u!1 &2017973560
 GameObject:
   m_ObjectHideFlags: 0
@@ -404,9 +424,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Felina.ARColoringBook.Bridges.ARFoundationBridge
   _aRTrackedImageManager: {fileID: 918220389}
-  cameraManager: {fileID: 918220386}
+  _cameraManager: {fileID: 918220386}
   _arCameraBackground: {fileID: 918220385}
-  arCamera: {fileID: 918220387}
+  _arCamera: {fileID: 918220387}
 --- !u!1 &2309968116597080725
 GameObject:
   m_ObjectHideFlags: 0
@@ -418,7 +438,6 @@ GameObject:
   - component: {fileID: 486071488486492786}
   - component: {fileID: 1194787226565314714}
   - component: {fileID: 5689009994424006101}
-  - component: {fileID: 3986030553832443346}
   m_Layer: 0
   m_Name: '@Manager'
   m_TagString: Untagged
@@ -426,23 +445,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &3986030553832443346
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2309968116597080725}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0fe2c0778e7887a408ee1bc22163c596, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Felina.ARColoringBook.ARContentSpawner
-  _arBridgeComponent: {fileID: 1194787226565314714}
-  _contentLibrary:
-  - ImageName: m-cm-01
-    Prefab: {fileID: 7693702908286551309, guid: 1677e4893d6d14245b2f62cd0bfe23e3,
-      type: 3}
 --- !u!114 &5689009994424006101
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -456,15 +458,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Felina.ARColoringBook.ARScannerManager
   _arBridgeComponent: {fileID: 1194787226565314714}
-  _unwarpMaterial: {fileID: 2100000, guid: de887ff255b52f24eb1590569fcaa106, type: 2}
+  _trackedImageManager: {fileID: 918220389}
+  _library: {fileID: 11400000, guid: c86e375d7e7430442a1104e88fa21f21, type: 2}
   _outputResolution: 1024
   _captureThreshold: 0.85
   _autoLock: 1
   _maxMoveSpeed: 0.05
   _maxRotateSpeed: 5
+  _qualityPreset: 1
+  _unwarpMaterial: {fileID: 2100000, guid: de887ff255b52f24eb1590569fcaa106, type: 2}
+  _useDirectBlit: 0
+  _useCombinedShader: 0
+  _combinedUnwarpMaterial: {fileID: 2100000, guid: 4d17964eeb487734fade07170c374f12,
+    type: 2}
   _targetList:
-  - Name: m-cm-01
-    Size: {x: 0.1, y: 0.14143647}
+  - Name: marker
+    Size: {x: 0.1, y: 0.1}
     IsTracking: 0
     Transform: {fileID: 0}
     Score: 0
