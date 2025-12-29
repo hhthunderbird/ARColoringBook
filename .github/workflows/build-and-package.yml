@@ -1,4 +1,4 @@
-name: Build iOS Library and Create Unity Package
+name: Build iOS/macOS Libraries and Unity Apps
 
 permissions:
   contents: write
@@ -8,22 +8,15 @@ on:
   push:
     branches:
       - main
-      #- feature/store-version
     tags:
       - 'v*'
   pull_request:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Package version (e.g., 1.0.0)'
-        required: false
-        default: '1.0.0'
 
 env:
   UNITY_VERSION: '6000.0.30f1'
-  PACKAGE_NAME: 'FelinaARColoringBook'
   IOS_LIBRARY_NAME: 'Felina'
 
 jobs:
@@ -49,104 +42,64 @@ jobs:
       - name: Cache iOS Build
         uses: actions/cache@v3
         with:
-          path: |
-            FelinaLibrary/build/ios
+          path: FelinaLibrary/build/ios
           key: ${{ runner.os }}-ios-build-${{ hashFiles('FelinaLibrary/**') }}
-          restore-keys: |
-            ${{ runner.os }}-ios-build-
+          restore-keys: ${{ runner.os }}-ios-build-
       
       - name: Build iOS Static Library (arm64)
         run: |
           cd FelinaLibrary
           mkdir -p build/ios
           cd build/ios
-          
-          # Configure for iOS arm64 (device)
-          cmake ../.. \
-            -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake \
-            -DPLATFORM=OS64 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=../../install/ios \
-            -DENABLE_BITCODE=OFF \
-            -DENABLE_ARC=ON
-          
-          # Build
+          cmake ../.. -G Ninja -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake -DPLATFORM=OS64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/ios -DENABLE_BITCODE=OFF -DENABLE_ARC=ON
           ninja
           ninja install
-          
           echo "? iOS arm64 library built successfully"
       
-      - name: Build iOS Simulator Library (arm64 + x86_64)
+      - name: Build iOS Simulator Library (arm64)
         run: |
           cd FelinaLibrary
           mkdir -p build/ios-simulator
           cd build/ios-simulator
-          
-          # Configure for iOS Simulator
-          cmake ../.. \
-            -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake \
-            -DPLATFORM=SIMULATORARM64 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=../../install/ios-simulator \
-            -DENABLE_BITCODE=OFF \
-            -DENABLE_ARC=ON
-          
-          # Build
+          cmake ../.. -G Ninja -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/ios-simulator -DENABLE_BITCODE=OFF -DENABLE_ARC=ON
           ninja
           ninja install
-          
           echo "? iOS Simulator library built successfully"
       
-      - name: Create Fat Library (Device + Simulator)
+      - name: Create XCFramework
         run: |
           cd FelinaLibrary
           mkdir -p install/ios-universal
-          
-          # Create xcframework (recommended for modern iOS)
-          xcodebuild -create-xcframework \
-            -library install/ios/lib/lib${IOS_LIBRARY_NAME}.a \
-            -library install/ios-simulator/lib/lib${IOS_LIBRARY_NAME}.a \
-            -output install/ios-universal/${IOS_LIBRARY_NAME}.xcframework
-          
-          echo "✓ XCFramework created successfully"
-          
-          # Note: Cannot create traditional fat library when both device and simulator use arm64
-          # XCFramework is the modern solution that handles this properly
-          echo "ℹ Skipping fat library creation (both architectures are arm64)"
+          xcodebuild -create-xcframework -library install/ios/lib/lib${IOS_LIBRARY_NAME}.a -library install/ios-simulator/lib/lib${IOS_LIBRARY_NAME}.a -output install/ios-universal/${IOS_LIBRARY_NAME}.xcframework
+          echo "? XCFramework created successfully"
       
-      - name: Verify Libraries
+      - name: Verify XCFramework
         run: |
           cd FelinaLibrary/install/ios-universal
-          
           echo "=== XCFramework Info ==="
           if [ -d "${IOS_LIBRARY_NAME}.xcframework" ]; then
             find ${IOS_LIBRARY_NAME}.xcframework -name "*.a" -exec file {} \;
             find ${IOS_LIBRARY_NAME}.xcframework -name "*.a" -exec lipo -info {} \;
           fi
       
-      - name: Copy to Unity Plugins Folder
+      - name: Copy to Unity Plugins
         run: |
-          # Create Plugins directory structure
           mkdir -p Assets/Plugins/iOS
-          
-          # Copy xcframework
           if [ -d "FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework" ]; then
             cp -R FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework Assets/Plugins/iOS/
-            echo "✓ Copied xcframework to Assets/Plugins/iOS/"
+            echo "? Copied xcframework to Assets/Plugins/iOS/"
           else
-            echo "✗ XCFramework not found!"
+            echo "? XCFramework not found!"
             exit 1
           fi
       
-      - name: Create Plugin Meta Files
+      - name: Create Plugin Meta File
         run: |
-          # Create .meta file for xcframework
           if [ -d "Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework" ]; then
-            cat > Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta << EOF
+            GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+            cat > Assets/Plugins/iOS/${IOS_LIBRARY_NAME}.xcframework.meta <<METAFILE
           fileFormatVersion: 2
-          guid: $(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+          guid: ${GUID}
           PluginImporter:
             externalObjects: {}
             serializedVersion: 2
@@ -177,52 +130,34 @@ jobs:
             userData: 
             assetBundleName: 
             assetBundleVariant: 
-          EOF
-            echo "✓ Created xcframework .meta file"
+          METAFILE
+            echo "? Created xcframework .meta file"
           fi
       
-      - name: Upload iOS Libraries as Artifact
+      - name: Upload iOS Library
         uses: actions/upload-artifact@v4
         with:
-          name: ios-libraries
-          path: |
-            Assets/Plugins/iOS/
-          retention-days: 30
+          name: ios-library
+          path: Assets/Plugins/iOS/
+          retention-days: 7
       
-      - name: Commit iOS Libraries (if on main branch)
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/store-version'
+      - name: Commit iOS Library (if on main)
+        if: github.ref == 'refs/heads/main'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "GitHub Actions"
-          
           git add Assets/Plugins/iOS/
-          
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: Update iOS native libraries [skip ci]"
+            git commit -m "chore: Update iOS native library [skip ci]"
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
-            echo "✓ Committed and pushed iOS libraries"
+            echo "? Committed iOS library"
           fi
 
-  build-other-platforms:
-    name: Build Other Platform Libraries
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            platform: Windows
-            output: Felina.dll
-            plugin_path: Assets/Plugins/x86_64
-          - os: macos-latest
-            platform: macOS
-            output: libFelina.dylib
-            plugin_path: Assets/Plugins/macOS
-          - os: ubuntu-latest
-            platform: Android
-            output: libFelina.so
-            plugin_path: Assets/Plugins/Android/libs/arm64-v8a
+  build-macos-library:
+    name: Build macOS Native Library
+    runs-on: macos-latest
     
     steps:
       - name: Checkout Repository
@@ -230,231 +165,29 @@ jobs:
         with:
           submodules: recursive
       
-      - name: Setup Build Environment (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install CMake
+        run: brew install cmake ninja
       
-      - name: Setup Build Environment (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build
-      
-      - name: Setup Build Environment (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install cmake ninja
-      
-      - name: Setup Android NDK (Android only)
-        if: matrix.platform == 'Android'
-        run: |
-          echo "Setting up Android NDK for 16KB alignment support"
-          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> $GITHUB_ENV
-          
-          # Verify NDK version supports 16KB alignment
-          if [ -f "$ANDROID_NDK_HOME/source.properties" ]; then
-            echo "=== NDK Version ==="
-            cat "$ANDROID_NDK_HOME/source.properties" | grep "Pkg.Revision"
-          fi
-      
-      - name: Build Library
-        shell: bash
+      - name: Build macOS Library
         run: |
           cd FelinaLibrary
-          mkdir -p build/${{ matrix.platform }}
-          cd build/${{ matrix.platform }}
-          
-          # Build to install directory to avoid conflicts with CMakeLists.txt output paths
-          if [ "${{ matrix.platform }}" = "Android" ]; then
-            echo "Building Android library with 16KB alignment for Android 15+ compatibility"
-            cmake ../.. -G Ninja \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_INSTALL_PREFIX=../../install/${{ matrix.platform }} \
-              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-              -DANDROID_ABI=arm64-v8a \
-              -DANDROID_PLATFORM=android-24
-          else
-            cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/${{ matrix.platform }}
-          fi
-          
+          mkdir -p build/macOS
+          cd build/macOS
+          cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/macOS
           ninja
           ninja install
-          
-          # Debug: Show what was installed
-          echo "=== Install directory contents ==="
-          find ../../install/${{ matrix.platform }} -type f || true
-          ls -R ../../install/${{ matrix.platform }} || true
+          echo "? macOS library built successfully"
       
-      - name: Copy to Plugins (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
+      - name: Copy to Unity Plugins
         run: |
-          New-Item -ItemType Directory -Force -Path "${{ matrix.plugin_path }}"
-          
-          # Debug: Show install directory structure
-          Write-Host "=== Checking install directory ==="
-          Get-ChildItem -Recurse "FelinaLibrary/install/${{ matrix.platform }}" -ErrorAction SilentlyContinue | Format-Table -AutoSize
-          
-          $found = $false
-          
-          # Check bin directory
-          if (Test-Path "FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }}") {
-            Copy-Item "FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }}" "${{ matrix.plugin_path }}/"
-            $found = $true
-            Write-Host "✓ Copied from bin/ to ${{ matrix.plugin_path }}/"
-          }
-          
-          # Check lib directory
-          if (-not $found -and (Test-Path "FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}")) {
-            Copy-Item "FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}" "${{ matrix.plugin_path }}/"
-            $found = $true
-            Write-Host "✓ Copied from lib/ to ${{ matrix.plugin_path }}/"
-          }
-          
-          # Check root install directory
-          if (-not $found -and (Test-Path "FelinaLibrary/install/${{ matrix.platform }}/${{ matrix.output }}")) {
-            Copy-Item "FelinaLibrary/install/${{ matrix.platform }}/${{ matrix.output }}" "${{ matrix.plugin_path }}/"
-            $found = $true
-            Write-Host "✓ Copied from root to ${{ matrix.plugin_path }}/"
-          }
-          
-          if (-not $found) {
-            Write-Error "Could not find ${{ matrix.output }} in any expected location"
-            Write-Host "Searched locations:"
-            Write-Host "  - FelinaLibrary/install/${{ matrix.platform }}/bin/${{ matrix.output }}"
-            Write-Host "  - FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }}"
-            Write-Host "  - FelinaLibrary/install/${{ matrix.platform }}/${{ matrix.output }}"
-            exit 1
-          }
+          mkdir -p Assets/Plugins/macOS
+          cp FelinaLibrary/install/macOS/lib/libFelina.dylib Assets/Plugins/macOS/
+          echo "? Copied libFelina.dylib to Assets/Plugins/macOS/"
       
-      - name: Copy to Plugins (Unix)
-        if: matrix.os != 'windows-latest'
-        shell: bash
+      - name: Create Plugin Meta File
         run: |
-          mkdir -p ${{ matrix.plugin_path }}
-          cp FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }} ${{ matrix.plugin_path }}/
-          echo "✓ Copied ${{ matrix.output }} to ${{ matrix.plugin_path }}/"
-      
-      - name: Verify Android 16KB Alignment
-        if: matrix.platform == 'Android'
-        shell: bash
-        run: |
-          echo "=== Verifying Android 15+ 16KB Alignment ==="
-          LIB_PATH="${{ matrix.plugin_path }}/${{ matrix.output }}"
-          
-          if [ ! -f "$LIB_PATH" ]; then
-            echo "✗ Library not found: $LIB_PATH"
-            exit 1
-          fi
-          
-          echo "Library path: $LIB_PATH"
-          echo "File size: $(stat -c%s "$LIB_PATH") bytes"
-          
-          # Check alignment using readelf
-          echo ""
-          echo "=== LOAD Segment Details ==="
-          if command -v readelf &> /dev/null; then
-            # Show full LOAD segment info
-            readelf -l "$LIB_PATH" | grep -A 1 "LOAD"
-            
-            echo ""
-            echo "=== Extracting Alignment Values ==="
-            # The alignment is the LAST column in the LOAD line (after R/W/E flags)
-            # Format: LOAD  0xoffset 0xvaddr 0xpaddr 0xfilesz 0xmemsz  FLAGS  0xALIGN
-            ALIGNMENTS=$(readelf -l "$LIB_PATH" | grep "LOAD" | awk '{print $NF}')
-            
-            echo "All LOAD segment alignments:"
-            echo "$ALIGNMENTS"
-            
-            # Check if any alignment is NOT 16KB (0x4000)
-            FAILED=0
-            while IFS= read -r ALIGN; do
-              if [ "$ALIGN" = "0x4000" ]; then
-                echo "✓ Found correct 16KB alignment: $ALIGN"
-              else
-                echo "✗ WARNING: Found incorrect alignment: $ALIGN (expected 0x4000)"
-                FAILED=1
-              fi
-            done <<< "$ALIGNMENTS"
-            
-            if [ $FAILED -eq 0 ]; then
-              echo ""
-              echo "✓ All LOAD segments correctly aligned to 16KB (0x4000)"
-            else
-              echo ""
-              echo "✗ ERROR: Library has incorrect alignment for Android 15+"
-              echo "This will cause crashes on devices with 16KB page size!"
-              exit 1
-            fi
-          else
-            echo "⚠️ readelf not available, skipping alignment verification"
-          fi
-          
-          echo ""
-          echo "=== Section Headers Summary ==="
-          readelf -S "$LIB_PATH" | head -20 || true
-      
-      - name: Create Plugin Meta Files
-        shell: bash
-        run: |
-          OUTPUT_FILE="${{ matrix.plugin_path }}/${{ matrix.output }}"
-          
-          if [ ! -f "$OUTPUT_FILE" ]; then
-            echo "✗ Library file not found: $OUTPUT_FILE"
-            exit 1
-          fi
-          
-          echo "Creating .meta file for: $OUTPUT_FILE"
-          
-          # Generate GUID for meta file
-          if command -v uuidgen &> /dev/null; then
-            GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
-          else
-            # Fallback: generate pseudo-random GUID on Windows
-            GUID=$(printf '%032x' $RANDOM$RANDOM$RANDOM$RANDOM)
-          fi
-          
-          # Create platform-specific meta file
-          if [ "${{ matrix.platform }}" = "Android" ]; then
-            # Android ARM64 library
-            cat > "${OUTPUT_FILE}.meta" << EOF
-          fileFormatVersion: 2
-          guid: ${GUID}
-          PluginImporter:
-            externalObjects: {}
-            serializedVersion: 2
-            iconMap: {}
-            executionOrder: {}
-            defineConstraints: []
-            isPreloaded: 0
-            isOverridable: 1
-            isExplicitlyReferenced: 0
-            validateReferences: 1
-            platformData:
-            - first:
-                Any: 
-              second:
-                enabled: 0
-                settings: {}
-            - first:
-                Editor: Editor
-              second:
-                enabled: 0
-                settings:
-                  DefaultValueInitialized: true
-            - first:
-                Android: Android
-              second:
-                enabled: 1
-                settings:
-                  CPU: ARM64
-            userData: 
-            assetBundleName: 
-            assetBundleVariant: 
-          EOF
-          elif [ "${{ matrix.platform }}" = "macOS" ]; then
-            # macOS library
-            cat > "${OUTPUT_FILE}.meta" << EOF
+          GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')
+          cat > Assets/Plugins/macOS/libFelina.dylib.meta <<METAFILE
           fileFormatVersion: 2
           guid: ${GUID}
           PluginImporter:
@@ -490,576 +223,19 @@ jobs:
             userData: 
             assetBundleName: 
             assetBundleVariant: 
-          EOF
-          elif [ "${{ matrix.platform }}" = "Windows" ]; then
-            # Windows library
-            cat > "${OUTPUT_FILE}.meta" << EOF
-          fileFormatVersion: 2
-          guid: ${GUID}
-          PluginImporter:
-            externalObjects: {}
-            serializedVersion: 2
-            iconMap: {}
-            executionOrder: {}
-            defineConstraints: []
-            isPreloaded: 0
-            isOverridable: 1
-            isExplicitlyReferenced: 0
-            validateReferences: 1
-            platformData:
-            - first:
-                Any: 
-              second:
-                enabled: 0
-                settings: {}
-            - first:
-                Editor: Editor
-              second:
-                enabled: 0
-                settings:
-                  CPU: X86_64
-                  DefaultValueInitialized: true
-                  OS: Windows
-            - first:
-                Standalone: Win64
-              second:
-                enabled: 1
-                settings:
-                  CPU: X86_64
-            userData: 
-            assetBundleName: 
-            assetBundleVariant: 
-          EOF
-          fi
-          
-          echo "✓ Created .meta file for ${{ matrix.output }}"
+          METAFILE
+          echo "? Created .meta file"
       
-      - name: Upload Artifact
+      - name: Upload macOS Library
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-library
-          path: ${{ matrix.plugin_path }}/
-          retention-days: 30
-
-  create-unity-package:
-    name: Create Unity Package
-    needs: [build-ios-library, build-other-platforms]
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
-      
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Restore Unity Packages
-        run: |
-          echo "=== Verifying Packages/manifest.json ==="
-          cat Packages/manifest.json
-          
-          echo ""
-          echo "=== Verifying Packages/packages-lock.json exists ==="
-          if [ -f "Packages/packages-lock.json" ]; then
-            echo "✓ packages-lock.json found"
-            echo "Checking for AR Foundation packages..."
-            grep -q "com.unity.xr.arfoundation" Packages/packages-lock.json && echo "✓ AR Foundation found" || echo "✗ AR Foundation NOT found"
-            grep -q "com.unity.xr.arcore" Packages/packages-lock.json && echo "✓ ARCore found" || echo "✗ ARCore NOT found"
-            grep -q "com.unity.xr.arkit" Packages/packages-lock.json && echo "✓ ARKit found" || echo "✗ ARKit NOT found"
-            grep -q "com.unity.mathematics" Packages/packages-lock.json && echo "✓ Mathematics found" || echo "✗ Mathematics NOT found"
-          else
-            echo "✗ packages-lock.json NOT found!"
-            exit 1
-          fi
-      
-      - name: Cache Unity Library
-        uses: actions/cache@v3
-        with:
-          path: Library
-          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: |
-            Library-
-      
-      - name: Download All Libraries
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      
-      - name: Organize Plugin Files
-        run: |
-          echo "=== Artifact directory structure ==="
-          find artifacts -type f || true
-          
-          # Copy iOS libraries
-          if [ -d "artifacts/ios-libraries" ]; then
-            mkdir -p Assets/Plugins/iOS
-            cp -R artifacts/ios-libraries/* Assets/Plugins/iOS/
-            echo "✓ Copied iOS libraries"
-          fi
-          
-          # Copy Windows library
-          if [ -d "artifacts/Windows-library" ]; then
-            mkdir -p Assets/Plugins/x86_64
-            # The artifact contains the files directly, not nested in Assets/Plugins/x86_64
-            cp -R artifacts/Windows-library/* Assets/Plugins/x86_64/
-            echo "✓ Copied Windows libraries"
-          fi
-          
-          # Copy macOS library
-          if [ -d "artifacts/macOS-library" ]; then
-            mkdir -p Assets/Plugins/macOS
-            cp -R artifacts/macOS-library/* Assets/Plugins/macOS/
-            echo "✓ Copied macOS libraries"
-          fi
-          
-          # Copy Android library
-          if [ -d "artifacts/Android-library" ]; then
-            mkdir -p Assets/Plugins/Android/libs/arm64-v8a
-            cp -R artifacts/Android-library/* Assets/Plugins/Android/libs/arm64-v8a/
-            echo "✓ Copied Android libraries"
-          fi
-          
-          echo "✓ All libraries organized in Assets/Plugins/"
-          echo "=== Plugin directory structure ==="
-          find Assets/Plugins -type f
-      
-      - name: Get Version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ $GITHUB_REF == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/v}
-          else
-            VERSION=$(date +%Y.%m.%d)-$(git rev-parse --short HEAD)
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "?? Package version: $VERSION"
-      
-      - name: Update Package Version
-        run: |
-          VERSION=${{ steps.version.outputs.version }}
-          
-          # Update package.json
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" Assets/ColouringBook/package.json
-          
-          # Update metadata.json
-          sed -i "s/\"current\": \".*\"/\"current\": \"$VERSION\"/" Assets/ColouringBook/.publisher/metadata.json
-          
-          echo "✓ Updated version to $VERSION"
-      
-      - name: Create Export Script
-        run: |
-          mkdir -p Assets/Editor
-          cat > Assets/Editor/ExportPackage.cs << 'EOF'
-          using UnityEditor;
-          using UnityEngine;
-          using System.IO;
-          using System;
-          
-          public class ExportPackage
-          {
-              public static void Export()
-              {
-                  try
-                  {
-                      Debug.Log("=== Starting Package Export ===");
-                      
-                      string packageName = Environment.GetEnvironmentVariable("PACKAGE_NAME") ?? "FelinaARColoringBook";
-                      string version = Environment.GetEnvironmentVariable("PACKAGE_VERSION") ?? "1.0.0";
-                      
-                      Debug.Log($"Package Name: {packageName}");
-                      Debug.Log($"Version: {version}");
-                      Debug.Log($"Current Directory: {Directory.GetCurrentDirectory()}");
-                      
-                      // Create Builds directory in the project root
-                      string buildsDir = Path.Combine(Application.dataPath, "..", "Builds");
-                      if (!Directory.Exists(buildsDir))
-                      {
-                          Directory.CreateDirectory(buildsDir);
-                          Debug.Log($"Created Builds directory: {buildsDir}");
-                      }
-                      
-                      string outputPath = Path.Combine(buildsDir, $"{packageName}_v{version}.unitypackage");
-                      Debug.Log($"Output Path: {outputPath}");
-                      
-                      string[] assetPaths = new string[]
-                      {
-                          "Assets/ColouringBook"
-                      };
-                      
-                      // Check if the asset path exists
-                      foreach (string assetPath in assetPaths)
-                      {
-                          if (!Directory.Exists(assetPath) && !File.Exists(assetPath))
-                          {
-                              Debug.LogError($"Asset path does not exist: {assetPath}");
-                              EditorApplication.Exit(1);
-                              return;
-                          }
-                          Debug.Log($"Including: {assetPath}");
-                      }
-                      
-                      Debug.Log("Starting AssetDatabase.ExportPackage...");
-                      AssetDatabase.ExportPackage(
-                          assetPaths,
-                          outputPath,
-                          ExportPackageOptions.Recurse | ExportPackageOptions.IncludeDependencies
-                      );
-                      Debug.Log("AssetDatabase.ExportPackage completed");
-                      
-                      if (File.Exists(outputPath))
-                      {
-                          FileInfo fileInfo = new FileInfo(outputPath);
-                          Debug.Log($"✓ Package exported successfully!");
-                          Debug.Log($"  Path: {outputPath}");
-                          Debug.Log($"  Size: {fileInfo.Length} bytes ({fileInfo.Length / 1024 / 1024} MB)");
-                          EditorApplication.Exit(0);
-                      }
-                      else
-                      {
-                          Debug.LogError($"✗ Package file not found after export: {outputPath}");
-                          EditorApplication.Exit(1);
-                      }
-                  }
-                  catch (Exception e)
-                  {
-                      Debug.LogError($"✗ Exception during package export: {e.Message}");
-                      Debug.LogError($"Stack trace: {e.StackTrace}");
-                      EditorApplication.Exit(1);
-                  }
-              }
-          }
-          EOF
-          
-          echo "✓ Created export script"
-          
-          # Create meta file for the script
-          cat > Assets/Editor/ExportPackage.cs.meta << 'EOF'
-          fileFormatVersion: 2
-          guid: a1b2c3d4e5f6789012345678901234ab
-          MonoImporter:
-            externalObjects: {}
-            serializedVersion: 2
-            defaultReferences: []
-            executionOrder: 0
-            icon: {instanceID: 0}
-            userData: 
-            assetBundleName: 
-            assetBundleVariant: 
-          EOF
-          
-          echo "✓ Created meta file for export script"
-          
-          # List the files to confirm creation
-          echo "=== Editor folder contents ==="
-          ls -la Assets/Editor/
-      
-      - name: Verify Export Script
-        run: |
-          echo "=== Verifying export script exists ==="
-          if [ -f "Assets/Editor/ExportPackage.cs" ]; then
-            echo "✓ ExportPackage.cs exists"
-            echo "=== Script content preview ==="
-            head -20 Assets/Editor/ExportPackage.cs
-          else
-            echo "✗ ExportPackage.cs not found!"
-            exit 1
-          fi
-      - name: Export Unity Package
-        run: |
-          echo "=== Creating Unity Package Manually ==="
-          
-          # Create Builds directory
-          mkdir -p Builds
-          
-          # Define package file
-          VERSION=${{ steps.version.outputs.version }}
-          PACKAGE_FILE="Builds/${PACKAGE_NAME}_v${VERSION}.unitypackage"
-          
-          echo "Package file will be: $PACKAGE_FILE"
-          
-          # Create a temporary directory for package contents
-          TEMP_DIR=$(mktemp -d)
-          echo "Temp directory: $TEMP_DIR"
-          
-          # Copy the entire Assets/ColouringBook folder to temp
-          echo "Copying Assets/ColouringBook to temp directory..."
-          mkdir -p "$TEMP_DIR/Assets"
-          cp -R Assets/ColouringBook "$TEMP_DIR/Assets/"
-          
-          # Also copy any meta files
-          if [ -f "Assets/ColouringBook.meta" ]; then
-            cp Assets/ColouringBook.meta "$TEMP_DIR/Assets/"
-          fi
-          
-          # Create the .unitypackage file (it's a gzipped tar archive)
-          echo "Creating .unitypackage archive..."
-          cd "$TEMP_DIR"
-          tar -czf "$GITHUB_WORKSPACE/$PACKAGE_FILE" Assets/
-          
-          # Verify the package was created
-          if [ -f "$GITHUB_WORKSPACE/$PACKAGE_FILE" ]; then
-            FILE_SIZE=$(stat -f%z "$GITHUB_WORKSPACE/$PACKAGE_FILE" 2>/dev/null || stat -c%s "$GITHUB_WORKSPACE/$PACKAGE_FILE")
-            echo "✓ Package created successfully!"
-            echo "  Path: $PACKAGE_FILE"
-            echo "  Size: $FILE_SIZE bytes ($((FILE_SIZE / 1024 / 1024)) MB)"
-          else
-            echo "✗ Package creation failed!"
-            exit 1
-          fi
-          
-          # Cleanup
-          cd "$GITHUB_WORKSPACE"
-          rm -rf "$TEMP_DIR"
-          
-          echo "=== Package export completed ==="
-      
-      - name: Check Unity Logs
-        if: always()
-        run: |
-          echo "=== Checking for log files ==="
-          find . -name "*.log" -type f -exec echo "Found log: {}" \; -exec cat {} \; || true
-          
-          echo ""
-          echo "=== Searching for Export Package logs ==="
-          grep -r "Starting Package Export" . || echo "Export script was NOT executed"
-          grep -r "Package exported successfully" . || echo "Package export did not complete successfully"
-          grep -r "Asset path does not exist" . || echo "No asset path errors found"
-          
-          echo ""
-          echo "=== Checking build directory ==="
-          ls -la build/ || echo "No build directory"
-          
-          echo ""
-          echo "=== Checking for Builds directory ==="
-          ls -la Builds/ || echo "No Builds directory"
-          
-          echo ""
-          echo "=== Checking workspace root ==="
-          ls -la . | head -20
-          
-          echo ""
-          echo "=== Checking Assets/Editor ==="
-          ls -la Assets/Editor/ || echo "No Assets/Editor directory"
-      - name: Verify Package Export
-        run: |
-          echo "=== Checking for exported package ==="
-          PACKAGE_FILE="Builds/${PACKAGE_NAME}_v${{ steps.version.outputs.version }}.unitypackage"
-          
-          if [ -f "$PACKAGE_FILE" ]; then
-            echo "✓ Package created: $PACKAGE_FILE"
-            ls -lh "$PACKAGE_FILE"
-          else
-            echo "✗ Package not found at: $PACKAGE_FILE"
-            echo "Checking Builds directory:"
-            ls -la Builds/ || echo "Builds directory doesn't exist"
-            echo "Checking parent directory:"
-            ls -la ../ || true
-            exit 1
-          fi
-      
-      - name: Create Package Checksum
-        run: |
-          cd Builds
-          PACKAGE_FILE="${PACKAGE_NAME}_v${{ steps.version.outputs.version }}.unitypackage"
-          sha256sum "$PACKAGE_FILE" > "$PACKAGE_FILE.sha256"
-          echo "? Checksum created"
-      
-      - name: Upload Unity Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: unity-package
-          path: |
-            Builds/*.unitypackage
-            Builds/*.sha256
-          retention-days: 90
-      
-      - name: Create Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            Builds/*.unitypackage
-            Builds/*.sha256
-          body: |
-            ## Felina AR Coloring Book v${{ steps.version.outputs.version }}
-            
-            ### ?? Installation
-            1. Download `${{ env.PACKAGE_NAME }}_v${{ steps.version.outputs.version }}.unitypackage`
-            2. Import into Unity via Assets > Import Package > Custom Package
-            3. Follow the [Quick Start Guide](https://github.com/${{ github.repository }}/wiki/Quick-Start)
-            
-            ### ?? Changelog
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/Assets/ColouringBook/CHANGELOG.md)
-            
-            ### ?? Verification
-            ```bash
-            sha256sum -c ${{ env.PACKAGE_NAME }}_v${{ steps.version.outputs.version }}.unitypackage.sha256
-            ```
-            
-            ### ?? Support
-            - Documentation: https://github.com/${{ github.repository }}/wiki
-            - Issues: https://github.com/${{ github.repository }}/issues
-            - Email: support@felina.dev
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  test-package:
-    name: Test Unity Package
-    needs: create-unity-package
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Download Unity Package
-        uses: actions/download-artifact@v4
-        with:
-          name: unity-package
-          path: package-test/
-      
-      - name: Verify Package Contents
-        run: |
-          cd package-test
-          
-          echo "=== Downloaded files ==="
-          ls -lh
-          
-          # Check that .unitypackage file exists
-          PACKAGE_FILE=$(ls *.unitypackage 2>/dev/null | head -1)
-          if [ -z "$PACKAGE_FILE" ]; then
-            echo "✗ No .unitypackage file found!"
-            exit 1
-          fi
-          
-          echo "✓ Package file found: $PACKAGE_FILE"
-          
-          # Check file size (should be > 100KB)
-          FILE_SIZE=$(stat -c%s "$PACKAGE_FILE")
-          if [ $FILE_SIZE -lt 100000 ]; then
-            echo "✗ Package file is too small: $FILE_SIZE bytes"
-            exit 1
-          fi
-          
-          echo "✓ Package size: $FILE_SIZE bytes"
-          
-          # Check that checksum file exists
-          if [ ! -f "${PACKAGE_FILE}.sha256" ]; then
-            echo "✗ Checksum file not found!"
-            exit 1
-          fi
-          
-          echo "✓ Checksum file found"
-          
-          # Verify checksum
-          sha256sum -c "${PACKAGE_FILE}.sha256"
-          
-          echo ""
-          echo "=== Package contents (first 50 files) ==="
-          tar -tzf "$PACKAGE_FILE" | head -50
-          
-          echo ""
-          echo "✓ Package verification completed successfully"
-
-  build-unity-android:
-    name: Build Unity Android
-    needs: create-unity-package
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
-      
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: true
-      
-      - name: Verify Unity Packages
-        run: |
-          echo "=== Verifying AR Foundation packages in manifest ==="
-          grep "com.unity.xr.arfoundation" Packages/manifest.json || echo "⚠️ AR Foundation not in manifest"
-          grep "com.unity.xr.arcore" Packages/manifest.json || echo "⚠️ ARCore not in manifest"
-          grep "com.unity.mathematics" Packages/manifest.json || echo "⚠️ Mathematics not in manifest"
-      
-      - name: Download All Platform Libraries
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      
-      - name: Organize Plugin Files
-        run: |
-          # Copy all platform libraries
-          if [ -d "artifacts/ios-libraries" ]; then
-            mkdir -p Assets/Plugins/iOS
-            cp -R artifacts/ios-libraries/* Assets/Plugins/iOS/
-          fi
-          
-          if [ -d "artifacts/Windows-library" ]; then
-            mkdir -p Assets/Plugins/x86_64
-            cp -R artifacts/Windows-library/* Assets/Plugins/x86_64/
-          fi
-          
-          if [ -d "artifacts/macOS-library" ]; then
-            mkdir -p Assets/Plugins/macOS
-            cp -R artifacts/macOS-library/* Assets/Plugins/macOS/
-          fi
-          
-          if [ -d "artifacts/Android-library" ]; then
-            mkdir -p Assets/Plugins/Android/libs/arm64-v8a
-            cp -R artifacts/Android-library/* Assets/Plugins/Android/libs/arm64-v8a/
-          fi
-      
-      - name: Cache Unity Library
-        uses: actions/cache@v3
-        with:
-          path: Library
-          key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: |
-            Library-Android-
-            Library-
-      
-      - name: Build Android APK
-        uses: game-ci/unity-builder@v4
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          unityVersion: ${{ env.UNITY_VERSION }}
-          targetPlatform: Android
-          versioning: None
-      
-      - name: Upload Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: build/Android/*.apk
-          retention-days: 30
+          name: macos-library
+          path: Assets/Plugins/macOS/
+          retention-days: 7
 
   build-unity-ios:
-    name: Build Unity iOS
-    needs: create-unity-package
+    name: Build Unity iOS App
+    needs: [build-ios-library]
     runs-on: macos-latest
     
     steps:
@@ -1069,49 +245,18 @@ jobs:
           fetch-depth: 0
           lfs: true
       
-      - name: Verify Unity Packages
-        run: |
-          echo "=== Verifying AR Foundation packages in manifest ==="
-          grep "com.unity.xr.arfoundation" Packages/manifest.json || echo "⚠️ AR Foundation not in manifest"
-          grep "com.unity.xr.arkit" Packages/manifest.json || echo "⚠️ ARKit not in manifest"
-          grep "com.unity.mathematics" Packages/manifest.json || echo "⚠️ Mathematics not in manifest"
-      
-      - name: Download All Platform Libraries
+      - name: Download iOS Library
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
-      
-      - name: Organize Plugin Files
-        run: |
-          # Copy all platform libraries
-          if [ -d "artifacts/ios-libraries" ]; then
-            mkdir -p Assets/Plugins/iOS
-            cp -R artifacts/ios-libraries/* Assets/Plugins/iOS/
-          fi
-          
-          if [ -d "artifacts/Windows-library" ]; then
-            mkdir -p Assets/Plugins/x86_64
-            cp -R artifacts/Windows-library/* Assets/Plugins/x86_64/
-          fi
-          
-          if [ -d "artifacts/macOS-library" ]; then
-            mkdir -p Assets/Plugins/macOS
-            cp -R artifacts/macOS-library/* Assets/Plugins/macOS/
-          fi
-          
-          if [ -d "artifacts/Android-library" ]; then
-            mkdir -p Assets/Plugins/Android/libs/arm64-v8a
-            cp -R artifacts/Android-library/* Assets/Plugins/Android/libs/arm64-v8a/
-          fi
+          name: ios-library
+          path: Assets/Plugins/iOS/
       
       - name: Cache Unity Library
         uses: actions/cache@v3
         with:
           path: Library
           key: Library-iOS-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: |
-            Library-iOS-
-            Library-
+          restore-keys: Library-iOS-
       
       - name: Build iOS Xcode Project
         uses: game-ci/unity-builder@v4
@@ -1131,12 +276,50 @@ jobs:
           path: build/iOS/
           retention-days: 30
 
-# Create and push tag
-## git tag -a v1.0.0 -m "Release v1.0.0"
-## git push origin v1.0.0 
+  build-unity-android:
+    name: Build Unity Android App
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      
+      - name: Cache Unity Library
+        uses: actions/cache@v3
+        with:
+          path: Library
+          key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: Library-Android-
+      
+      - name: Build Android APK
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: Android
+          versioning: None
+      
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/Android/*.apk
+          retention-days: 30
 
-# Workflow will:
-# 1. Build all platform libraries
-# 2. Create Unity package
-# 3. Test import
-# 4. Create GitHub release with downloadable .unitypackage
