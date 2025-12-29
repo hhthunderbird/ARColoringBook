@@ -245,6 +245,18 @@ jobs:
         run: |
           brew install cmake ninja
       
+      - name: Setup Android NDK (Android only)
+        if: matrix.platform == 'Android'
+        run: |
+          echo "Setting up Android NDK for 16KB alignment support"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> $GITHUB_ENV
+          
+          # Verify NDK version supports 16KB alignment
+          if [ -f "$ANDROID_NDK_HOME/source.properties" ]; then
+            echo "=== NDK Version ==="
+            cat "$ANDROID_NDK_HOME/source.properties" | grep "Pkg.Revision"
+          fi
+      
       - name: Build Library
         shell: bash
         run: |
@@ -253,7 +265,18 @@ jobs:
           cd build/${{ matrix.platform }}
           
           # Build to install directory to avoid conflicts with CMakeLists.txt output paths
-          cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/${{ matrix.platform }}
+          if [ "${{ matrix.platform }}" = "Android" ]; then
+            echo "Building Android library with 16KB alignment for Android 15+ compatibility"
+            cmake ../.. -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX=../../install/${{ matrix.platform }} \
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+              -DANDROID_ABI=arm64-v8a \
+              -DANDROID_PLATFORM=android-24
+          else
+            cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/${{ matrix.platform }}
+          fi
+          
           ninja
           ninja install
           
@@ -311,6 +334,47 @@ jobs:
           mkdir -p ${{ matrix.plugin_path }}
           cp FelinaLibrary/install/${{ matrix.platform }}/lib/${{ matrix.output }} ${{ matrix.plugin_path }}/
           echo "✓ Copied ${{ matrix.output }} to ${{ matrix.plugin_path }}/"
+      
+      - name: Verify Android 16KB Alignment
+        if: matrix.platform == 'Android'
+        shell: bash
+        run: |
+          echo "=== Verifying Android 15+ 16KB Alignment ==="
+          LIB_PATH="${{ matrix.plugin_path }}/${{ matrix.output }}"
+          
+          if [ ! -f "$LIB_PATH" ]; then
+            echo "✗ Library not found: $LIB_PATH"
+            exit 1
+          fi
+          
+          echo "Library path: $LIB_PATH"
+          echo "File size: $(stat -c%s "$LIB_PATH") bytes"
+          
+          # Check alignment using readelf
+          echo ""
+          echo "=== LOAD Segment Alignment ==="
+          if command -v readelf &> /dev/null; then
+            readelf -l "$LIB_PATH" | grep -A 2 "LOAD" || echo "No LOAD segments found"
+            
+            # Extract alignment values and verify 16KB (0x4000)
+            ALIGNMENT=$(readelf -l "$LIB_PATH" | grep "LOAD" | awk '{print $NF}' | head -1)
+            echo ""
+            echo "Detected alignment: $ALIGNMENT"
+            
+            if [ "$ALIGNMENT" = "0x4000" ]; then
+              echo "✓ Library is correctly aligned to 16KB (0x4000)"
+            else
+              echo "✗ WARNING: Library alignment is $ALIGNMENT, expected 0x4000 (16KB)"
+              echo "This may cause issues on Android 15+ devices!"
+              exit 1
+            fi
+          else
+            echo "⚠️ readelf not available, skipping alignment verification"
+          fi
+          
+          echo ""
+          echo "=== Section Headers ==="
+          readelf -S "$LIB_PATH" | head -20 || true
       
       - name: Create Plugin Meta Files
         shell: bash
