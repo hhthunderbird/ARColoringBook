@@ -17,19 +17,15 @@ namespace Felina.ARColoringBook
     [Serializable]
     public struct ReferencePair
     {
-        public string referenceName; // Must match ReferenceLibrary name exactly
+        public string referenceName; 
         public Texture2D originalTexture;
     }
 
     public class ARScannerManager : MonoBehaviour
     {
 #if UNITY_IOS && !UNITY_EDITOR
-[DllImport("__Internal")] private static extern bool CheckStability( float3 f1, quaternion q1, float3 f2, quaternion q2, float f3, float f4, float f5 );
-        //[DllImport("__Internal")] private static extern float CalculateQuality( float3 f1, float3 f2, float3 f3, float3 f4, float2 f5, float f6, float f7 );
-        //[DllImport("__Internal")] private static unsafe extern void ComputeTransformMatrix( float a, float b, void* c, void* d );
+        [DllImport("__Internal")] private static unsafe extern void ComputeTransformMatrix( float a, float b, void* c, void* d );
 #else        
-        //[DllImport( "Felina" )] private static extern bool CheckStability( float3 a, quaternion b, float3 c, quaternion d, float e, float f, float g );
-        //[DllImport( "Felina" )] private static extern float CalculateQuality( float3 a, float3 b, float3 c, float3 d, float2 e, float f, float g );
         [DllImport( "Felina" )] private static unsafe extern void ComputeTransformMatrix( float a, float b, void* c, void* d );
 #endif
         public static ARScannerManager Instance { get; private set; }
@@ -283,7 +279,6 @@ namespace Felina.ARColoringBook
             ProcessCaptureGPU();
         }
 
-        // --- INLINED JOB (No ScannerMath dependency) ---
         [BurstCompile]
         public struct ScannerJob : IJob
         {
@@ -316,7 +311,6 @@ namespace Felina.ARColoringBook
 
             public void Execute()
             {
-                // --- 1. CHECK STABILITY ---
                 float distSq = math.distancesq( curPos, lastPos );
                 float _dt = dt <= 1e-5f ? 0.016f : dt;
 
@@ -340,7 +334,6 @@ namespace Felina.ARColoringBook
 
                 resultStability.Value = isStable;
 
-                // --- 2. CHECK QUALITY ---
                 if ( isStable )
                 {
                     // Angle Score
@@ -377,285 +370,5 @@ namespace Felina.ARColoringBook
                 }
             }
         }
-
-        //private bool CalculateNativeStability()
-        //{
-        //    _arCamera.transform.GetPositionAndRotation( out var curPos, out var curRot );
-        //    var dt = Time.deltaTime;
-
-        //    // Store current before overwriting? 
-        //    // NOTE: Your original code updated _lastCamPos AFTER the check. 
-        //    // Ensure you pass the PREVIOUS frame's data, then update it.
-        //    var isStable = ScannerMath.CheckStability(
-        //        ( float3 ) curPos, curRot,
-        //        _lastCamPos, _lastCamRot,
-        //        dt,
-        //        Settings.Instance.MAX_MOVE_SPEED,
-        //        Settings.Instance.MAX_ROTATE_SPEED
-        //    );
-
-        //    _lastCamPos = ( float3 ) curPos;
-        //    _lastCamRot = curRot;
-
-        //    return isStable;
-        //}
-
-        //private float GetNativeQuality()
-        //{
-        //    _arCamera.transform.GetPositionAndRotation( out var camPosVec, out var camRot );
-        //    var camPos = ( float3 ) camPosVec;
-        //    var camFwd = ( float3 ) _arCamera.transform.forward;
-        //    var imgPos = ( float3 ) _target.Transform.position;
-        //    var imgUp = ( float3 ) _target.Transform.up;
-        //    var sPos3 = _arCamera.WorldToScreenPoint( imgPos );
-        //    var sPos = ( sPos3.z > 0 ) ? new float2( sPos3.x, sPos3.y ) : new float2( -1, -1 );
-
-        //    var stg = Settings.Instance;
-        //    // Use the C# version
-        //    return ScannerMath.CalculateQuality(
-        //        camPos, camFwd, imgPos, imgUp, sPos,
-        //        Screen.width, Screen.height, stg.MIN_SCAN_DIST, stg.MAX_SCAN_DIST, stg.DIST_PENALTY, stg.WEIGHT_ANGLE, stg.WEIGHT_CENTER
-        //    );
-        //}
-
-        ///// <summary>
-        ///// Replaces Felina.cpp CheckStability
-        ///// </summary>
-        //[BurstCompile]
-        //public bool CheckStability( float3 curPos, quaternion curRot, float3 lastPos, quaternion lastRot, float dt, float maxMoveSpeed, float maxRotSpeed )
-        //{
-        //    // --- 1. Position Check (Distance Squared) ---
-        //    // Faster than Vector3.Distance because we avoid the Square Root
-        //    float distSq = math.distancesq( curPos, lastPos );
-
-        //    // Safety check for bad dt
-        //    if ( dt <= 1e-5f ) dt = 0.016f;
-
-        //    // Calculate max allowed distance squared once
-        //    float maxDist = maxMoveSpeed * dt;
-        //    float maxDistSq = maxDist * maxDist;
-
-        //    // Fail early if position moved too much
-        //    if ( distSq > maxDistSq ) return false;
-
-        //    // --- 2. Rotation Check (Dot Product) ---
-        //    // math.dot is the fastest possible way to compare rotations (4 muls, 3 adds).
-        //    float dot = math.dot( curRot, lastRot );
-
-        //    // "abs" handles the quaternion double-cover (q == -q)
-        //    float absDot = math.abs( dot );
-
-        //    // --- OPTIMIZATION: Compare Cosines instead of Angles ---
-        //    // Instead of calculating the Angle (expensive 'acos'), 
-        //    // we calculate the Cosine of the Allowed Angle (cheap).
-        //    //
-        //    // Logic: 
-        //    // If Angle < Limit
-        //    // Then Cos(Angle) > Cos(Limit)  (Because Cos decreases as Angle increases)
-        //    // And since dot = cos(theta/2), we check: absDot > cos(Limit/2)
-
-        //    float maxAngleDeg = maxRotSpeed * dt;
-        //    float maxAngleRad = math.radians( maxAngleDeg );
-
-        //    // This is the threshold. If alignment (dot) is stronger than this, we are stable.
-        //    float minCos = math.cos( maxAngleRad * 0.5f );
-
-        //    return absDot >= minCos;
-        //}
-
-        ///// <summary>
-        ///// Replaces Felina.cpp CalculateQuality
-        ///// </summary>
-        //[BurstCompile]
-        //public float CalculateQuality( float3 camPos, float3 camFwd, float3 imgPos, float3 imgUp, float2 imgScreenPos, float screenWidth, float screenHeight )
-        //{
-        //    var settings = Settings.Instance;
-
-        //    // 1. Angle Score (Dot Product)
-        //    // How much is the image facing the camera?
-        //    var negFwd = -camFwd;
-        //    var angleScore = math.saturate( math.dot( imgUp, negFwd ) );
-
-        //    // 2. Center Score
-        //    // Is the image in the center of the screen?
-        //    if ( imgScreenPos.x < 0 || imgScreenPos.y < 0 ) return 0.0f; // Behind camera
-
-        //    var screenCenter = new float2( screenWidth * 0.5f, screenHeight * 0.5f );
-        //    var sqrDistCenter = math.distancesq( imgScreenPos, screenCenter );
-
-        //    // Normalize by half-height squared (vertical radius)
-        //    var halfH = screenHeight * 0.5f;
-        //    var sqrMaxDist = halfH * halfH;
-
-        //    var centerScore = math.saturate( 1.0f - ( sqrDistCenter / sqrMaxDist ) );
-
-        //    // 3. Distance Score (The Penalty Logic)
-        //    var sqrDistCam = math.distancesq( camPos, imgPos );
-        //    var distScore = 1.0f;
-
-        //    var minSq = settings.MIN_SCAN_DIST * settings.MIN_SCAN_DIST;
-        //    var maxSq = settings.MAX_SCAN_DIST * settings.MAX_SCAN_DIST;
-
-        //    // Apply penalty if out of range
-        //    if ( sqrDistCam < minSq || sqrDistCam > maxSq )
-        //    {
-        //        distScore = settings.DIST_PENALTY;
-        //    }
-
-        //    // Final Weighted Score
-        //    // Note: Now using the Settings values instead of hardcoded 0.6/0.4
-        //    return ( angleScore * settings.WEIGHT_ANGLE ) + ( centerScore * settings.WEIGHT_CENTER * distScore );
-        //}
-        //[BurstCompile]
-        //public struct ScannerJob : IJob
-        //{
-        //    // --- Inputs ---
-        //    [ReadOnly] public float3 curPos;
-        //    [ReadOnly] public quaternion curRot;
-        //    [ReadOnly] public float3 lastPos;
-        //    [ReadOnly] public quaternion lastRot;
-        //    [ReadOnly] public float dt;
-
-        //    [ReadOnly] public float3 camFwd;
-        //    [ReadOnly] public float3 imgPos;
-        //    [ReadOnly] public float3 imgUp;
-        //    [ReadOnly] public float2 imgScreenPos;
-        //    [ReadOnly] public float screenW;
-        //    [ReadOnly] public float screenH;
-
-        //    // --- Settings (Pass by Value) ---
-        //    [ReadOnly] public float maxMoveSpd;
-        //    [ReadOnly] public float maxRotSpd;
-        //    [ReadOnly] public float minScanDist;
-        //    [ReadOnly] public float maxScanDist;
-        //    [ReadOnly] public float distPenalty;
-        //    [ReadOnly] public float weightAngle;
-        //    [ReadOnly] public float weightCenter;
-
-        //    // --- Outputs (Must be NativeArray) ---
-        //    // We use an array of length 1 to store the single result
-        //    [WriteOnly] public NativeReference<bool> resultStability;
-        //    [WriteOnly] public NativeReference<float> resultQuality;
-
-        //    public void Execute()
-        //    {
-        //        // 1. Check Stability
-        //        bool stable = ScannerMath.CheckStability(
-        //            curPos, curRot, lastPos, lastRot, dt,
-        //            maxMoveSpd, maxRotSpd
-        //        );
-
-        //        resultStability.Value = stable;
-
-        //        // 2. Check Quality (Only if stable to save perf, or always if you prefer)
-        //        if ( stable )
-        //        {
-        //            resultQuality.Value = ScannerMath.CalculateQuality(
-        //                curPos, camFwd, imgPos, imgUp, imgScreenPos,
-        //                screenW, screenH,
-        //                minScanDist, maxScanDist, distPenalty,
-        //                weightAngle, weightCenter
-        //            );
-        //        }
-        //        else
-        //        {
-        //            resultQuality.Value = 0.0f;
-        //        }
-        //    }
-        //}
     }
-
-
-    ////[BurstCompile]
-    //public static class ScannerMath
-    //{
-    //    /// <summary>
-    //    /// Replaces Felina.cpp CheckStability
-    //    /// </summary>
-    //    //[BurstCompile]
-    //    public static bool CheckStability( float3 curPos, quaternion curRot, float3 lastPos, quaternion lastRot, float dt, float maxMoveSpeed, float maxRotSpeed )
-    //    {
-    //        // --- 1. Position Check (Distance Squared) ---
-    //        // Faster than Vector3.Distance because we avoid the Square Root
-    //        float distSq = math.distancesq( curPos, lastPos );
-
-    //        // Safety check for bad dt
-    //        if ( dt <= 1e-5f ) dt = 0.016f;
-
-    //        // Calculate max allowed distance squared once
-    //        float maxDist = maxMoveSpeed * dt;
-    //        float maxDistSq = maxDist * maxDist;
-
-    //        // Fail early if position moved too much
-    //        if ( distSq > maxDistSq ) return false;
-
-    //        // --- 2. Rotation Check (Dot Product) ---
-    //        // math.dot is the fastest possible way to compare rotations (4 muls, 3 adds).
-    //        float dot = math.dot( curRot, lastRot );
-
-    //        // "abs" handles the quaternion double-cover (q == -q)
-    //        float absDot = math.abs( dot );
-
-    //        // --- OPTIMIZATION: Compare Cosines instead of Angles ---
-    //        // Instead of calculating the Angle (expensive 'acos'), 
-    //        // we calculate the Cosine of the Allowed Angle (cheap).
-    //        //
-    //        // Logic: 
-    //        // If Angle < Limit
-    //        // Then Cos(Angle) > Cos(Limit)  (Because Cos decreases as Angle increases)
-    //        // And since dot = cos(theta/2), we check: absDot > cos(Limit/2)
-
-    //        float maxAngleDeg = maxRotSpeed * dt;
-    //        float maxAngleRad = math.radians( maxAngleDeg );
-
-    //        // This is the threshold. If alignment (dot) is stronger than this, we are stable.
-    //        float minCos = math.cos( maxAngleRad * 0.5f );
-
-    //        return absDot >= minCos;
-    //    }
-
-    //    /// <summary>
-    //    /// Replaces Felina.cpp CalculateQuality
-    //    /// </summary>
-    //    //[BurstCompile]                          
-    //    public static float CalculateQuality( float3 camPos, float3 camFwd, float3 imgPos, float3 imgUp, float2 imgScreenPos, float screenWidth, float screenHeight, float minScanDist, float maxScanDist, float distPenalty, float weightAngle, float weightCenter )
-    //    {
-    //        //var settings = Settings.Instance;
-
-    //        // 1. Angle Score (Dot Product)
-    //        // How much is the image facing the camera?
-    //        var negFwd = -camFwd;
-    //        var angleScore = math.saturate( math.dot( imgUp, negFwd ) );
-
-    //        // 2. Center Score
-    //        // Is the image in the center of the screen?
-    //        if ( imgScreenPos.x < 0 || imgScreenPos.y < 0 ) return 0.0f; // Behind camera
-
-    //        var screenCenter = new float2( screenWidth * 0.5f, screenHeight * 0.5f );
-    //        var sqrDistCenter = math.distancesq( imgScreenPos, screenCenter );
-
-    //        // Normalize by half-height squared (vertical radius)
-    //        var halfH = screenHeight * 0.5f;
-    //        var sqrMaxDist = halfH * halfH;
-
-    //        var centerScore = math.saturate( 1.0f - ( sqrDistCenter / sqrMaxDist ) );
-
-    //        // 3. Distance Score (The Penalty Logic)
-    //        var sqrDistCam = math.distancesq( camPos, imgPos );
-    //        var distScore = 1.0f;
-
-    //        var minSq = minScanDist * minScanDist;
-    //        var maxSq = maxScanDist * maxScanDist;
-
-    //        // Apply penalty if out of range
-    //        if ( sqrDistCam < minSq || sqrDistCam > maxSq )
-    //        {
-    //            distScore = distPenalty;
-    //        }
-
-    //        // Final Weighted Score
-    //        // Note: Now using the Settings values instead of hardcoded 0.6/0.4
-    //        return ( angleScore * weightAngle ) + ( centerScore * weightCenter * distScore );
-    //    }
-    //}
 }
