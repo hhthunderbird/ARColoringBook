@@ -1,4 +1,4 @@
-name: Build iOS/macOS Libraries and Unity Apps
+﻿name: Build iOS/macOS Libraries and Unity Apps
 
 permissions:
   contents: write
@@ -6,11 +6,6 @@ permissions:
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*'
-  pull_request:
     branches:
       - main
   workflow_dispatch:
@@ -54,7 +49,7 @@ jobs:
           cmake ../.. -G Ninja -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake -DPLATFORM=OS64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/ios -DENABLE_BITCODE=OFF -DENABLE_ARC=ON
           ninja
           ninja install
-          echo "? iOS arm64 library built successfully"
+          echo "✅ iOS arm64 library built successfully"
       
       - name: Build iOS Simulator Library (arm64)
         run: |
@@ -64,14 +59,14 @@ jobs:
           cmake ../.. -G Ninja -DCMAKE_TOOLCHAIN_FILE=../../cmake/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/ios-simulator -DENABLE_BITCODE=OFF -DENABLE_ARC=ON
           ninja
           ninja install
-          echo "? iOS Simulator library built successfully"
+          echo "✅ iOS Simulator library built successfully"
       
       - name: Create XCFramework
         run: |
           cd FelinaLibrary
           mkdir -p install/ios-universal
           xcodebuild -create-xcframework -library install/ios/lib/lib${IOS_LIBRARY_NAME}.a -library install/ios-simulator/lib/lib${IOS_LIBRARY_NAME}.a -output install/ios-universal/${IOS_LIBRARY_NAME}.xcframework
-          echo "? XCFramework created successfully"
+          echo "✅ XCFramework created successfully"
       
       - name: Verify XCFramework
         run: |
@@ -87,9 +82,9 @@ jobs:
           mkdir -p Assets/Plugins/iOS
           if [ -d "FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework" ]; then
             cp -R FelinaLibrary/install/ios-universal/${IOS_LIBRARY_NAME}.xcframework Assets/Plugins/iOS/
-            echo "? Copied xcframework to Assets/Plugins/iOS/"
+            echo "✅ Copied xcframework to Assets/Plugins/iOS/"
           else
-            echo "? XCFramework not found!"
+            echo "❌ XCFramework not found!"
             exit 1
           fi
       
@@ -131,7 +126,7 @@ jobs:
             assetBundleName: 
             assetBundleVariant: 
           METAFILE
-            echo "? Created xcframework .meta file"
+            echo "✅ Created xcframework .meta file"
           fi
       
       - name: Upload iOS Library
@@ -152,7 +147,7 @@ jobs:
           else
             git commit -m "chore: Update iOS native library [skip ci]"
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
-            echo "? Committed iOS library"
+            echo "✅ Committed iOS library"
           fi
 
   build-macos-library:
@@ -176,13 +171,13 @@ jobs:
           cmake ../.. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../install/macOS
           ninja
           ninja install
-          echo "? macOS library built successfully"
+          echo "✅ macOS library built successfully"
       
       - name: Copy to Unity Plugins
         run: |
           mkdir -p Assets/Plugins/macOS
           cp FelinaLibrary/install/macOS/lib/libFelina.dylib Assets/Plugins/macOS/
-          echo "? Copied libFelina.dylib to Assets/Plugins/macOS/"
+          echo "✅ Copied libFelina.dylib to Assets/Plugins/macOS/"
       
       - name: Create Plugin Meta File
         run: |
@@ -224,7 +219,7 @@ jobs:
             assetBundleName: 
             assetBundleVariant: 
           METAFILE
-          echo "? Created .meta file"
+          echo "✅ Created .meta file"
       
       - name: Upload macOS Library
         uses: actions/upload-artifact@v4
@@ -257,6 +252,9 @@ jobs:
           path: Library
           key: Library-iOS-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-iOS-
+      
+      - name: Clean XR Temp Files
+        run: rm -rf Assets/XR/UserSimulationSettings/
       
       - name: Build iOS Xcode Project
         uses: game-ci/unity-builder@v4
@@ -305,6 +303,9 @@ jobs:
           key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-Android-
       
+      - name: Clean XR Temp Files
+        run: rm -rf Assets/XR/UserSimulationSettings/
+      
       - name: Build Android APK
         uses: game-ci/unity-builder@v4
         env:
@@ -322,4 +323,3 @@ jobs:
           name: android-apk
           path: build/Android/*.apk
           retention-days: 30
-
