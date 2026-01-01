@@ -158,54 +158,9 @@ extern "C" {
 		float c3x, c3y, c3z, c3w;
 	};
 
-	// --- NEW: CONFIGURATION VAULT ---
-	// ID 0: Check Interval (Days)
-	// ID 1: Pref Key Status
-	// ID 2: Pref Key Date
-	// ID 3: Pref Key Cache
-
-	EXPORT_API int GetConfigInt(int id) {
-		switch (id) {
-		case 0: return 30; // CHECK_INTERVAL_DAYS
-		default: return 0;
-		}
-	}
-
-	EXPORT_API void GetConfigString(int id, char* buffer, int maxLen) {
-		if (!buffer || maxLen <= 0) return;
-
-		const char* val = "";
-		switch (id) {
-		case 1: val = "sys_status";     break; // Pref Status
-		case 2: val = "sys_check_ts";   break; // Pref Last Check
-		case 3: val = "sys_cache";      break; // Pref Cache
-		}
-
-		// Safe Copy
-#if defined(_WIN32)
-		strncpy_s(buffer, maxLen, val, _TRUNCATE);
-#else
-		strncpy(buffer, val, maxLen);
-		buffer[maxLen - 1] = '\0';
-#endif
-	}
-
 	// --- NEW: Internal Helper for Aspect Ratio (Hidden logic) ---
-	static inline void ComputeUVs(Float2* uvs) {
-		//float ratio = width / height;
-		//float uMin, uMax, vMin, vMax;
-
-		//if (ratio < 1.0f) { // Portrait
-		//	float s = 1.0f / ratio;
-		//	vMin = (1.0f - s) * 0.5f; vMax = vMin + s;
-		//	uMin = 0.0f; uMax = 1.0f;
-		//}
-		//else { // Landscape
-		//	float s = ratio;
-		//	uMin = (1.0f - s) * 0.5f; uMax = uMin + s;
-		//	vMin = 0.0f; vMax = 1.0f;
-		//}
-
+	static inline void ComputeUVs(Float2* uvs) 
+	{
 		float uMin, uMax, vMin, vMax;
 
 		uMin = 0.0f; uMax = uMin + 1.0f;

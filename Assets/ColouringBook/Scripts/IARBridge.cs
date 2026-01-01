@@ -1,6 +1,6 @@
 ﻿using System;
+using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.XR.ARFoundation;
 
 namespace Felina.ARColoringBook
 {
@@ -10,7 +10,6 @@ namespace Felina.ARColoringBook
     {
         public string Name;
         public Vector2 Size; // Physical dimensions (meters)
-        public bool IsTracking;
         public Transform Transform; // Reference to the actual game object
         public float Score;
     }
@@ -28,16 +27,15 @@ namespace Felina.ARColoringBook
     public interface IARBridge
     {
         event Action<ScanTarget> OnTargetAdded;
+        event Action<float4x4> OnDisplayMatrixUpdated;
 
         void SetTargetRenderTexture( RenderTexture targetRT );
-        void GetCameraFeedRT();
+        void UpdateCameraRT();
 
         Camera GetARCamera();
 
-        RenderTextureSettings RenderTextureSettings { get; }
-        ARTrackedImageManager ARTrackedImageManager { get; }
+        RenderTexture MasterCameraFeed { get; }
 
-        //TODO: Remove dependency on ARFoundation types
-        ARCameraBackground GetARCameraBackground();
+        string GetImageName( Guid guid );
     }
 }

@@ -1,3 +1,4 @@
+using Felina.ARColoringBook.Bridges;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,28 +7,50 @@ using UnityEngine.XR.ARSubsystems;
 
 namespace Felina.ARColoringBook
 {
+    [Serializable]
+    public struct TargetData
+    {
+        public string name;
+        public string imageGuid;
+        public Renderer renderer;
+        public GameObject prefab;
+        public Texture2D blankMarker;
+        public int materialIndex;
+    }
+
+
     [RequireComponent( typeof( ARTrackedImageManager ) )]
     public class ARContentSpawner : MonoBehaviour
     {
         [SerializeField]
-        private List<PrefabImagePair> _prefabImagePairs = new();
+        private List<TargetData> _targetData = new();
 
-        [Serializable]
-        private struct PrefabImagePair
-        {
-            public string name;
-            public string imageGuid;  // Store as string for proper serialization
-            public GameObject prefab;
-        }
+        private Dictionary<string, TargetData> _targetDataDictionary = new();
 
-
-        private Dictionary<string, GameObject> _prefabDictionary = new();
         private Dictionary<string, GameObject> _instantiated = new();
         private HashSet<TrackableId> _pendingAdds = new();
 
+        private MaterialPropertyBlock _propBlock;
+        private readonly int _colorId = Shader.PropertyToID( "_Color" );
+        private readonly int _baseColorId = Shader.PropertyToID( "_BaseColor" );
+        private readonly int _tintColorId = Shader.PropertyToID( "_TintColor" );
+        private int[] _candidates;
+
+        private string _lastObjectId;
+
+        private void Awake()
+        {
+            _candidates = new int[]
+            {
+                Shader.PropertyToID( "_BaseMap" ),
+                Shader.PropertyToID( "_MainTex" ),
+                Shader.PropertyToID( "_DrawingTex" )
+        };
+            _propBlock = new MaterialPropertyBlock();
+        }
+
         private void OnValidate()
         {
-            Debug.Log( $"[Felina] ARContentSpawner: OnValidate called on '{gameObject.name}'" );
             if ( TryGetComponent<ARTrackedImageManager>( out var libraryManager ) )
             {
                 libraryManager.trackedImagePrefab = null;
@@ -36,34 +59,70 @@ namespace Felina.ARColoringBook
                 {
                     var imgRef = libraryManager.referenceLibrary[ i ];
 
-                    var item = new PrefabImagePair
+                    var item = new TargetData
                     {
                         name = imgRef.name,
-                        imageGuid = imgRef.guid.ToString()  // Convert GUID to string for serialization
+                        imageGuid = imgRef.guid.ToString()
                     };
 
-                    if ( i >= _prefabImagePairs.Count )
-                        _prefabImagePairs.Add( item );
+                    if ( i >= _targetData.Count )
+                        _targetData.Add( item );
                     else
                     {
-                        item.prefab = _prefabImagePairs[ i ].prefab;
-                        _prefabImagePairs[ i ] = item;
+                        item.prefab = _targetData[ i ].prefab;
+                        item.blankMarker = _targetData[ i ].blankMarker;
+                        item.materialIndex = _targetData[ i ].materialIndex;
+                        _targetData[ i ] = item;
                     }
                 }
             }
         }
+        public void Reset() => OnValidate();
 
         private void Start()
         {
-            foreach ( var pair in _prefabImagePairs )
+            ARScannerManager.Instance.OnTextureCaptured += UpdateModel;
+
+            foreach ( var pair in _targetData )
             {
-                //this will overwrite duplicates, which is fine
-                // Debug.Log( $"################## ref img 3 {pair.imageGuid} == {pair.prefab.name}" );
-                _prefabDictionary[ pair.imageGuid ] = pair.prefab;
+                _targetDataDictionary[ pair.imageGuid ] = pair;
             }
         }
 
-        public void Reset() => OnValidate();
+        private void UpdateModel()
+        {
+            var target = _targetDataDictionary[ _lastObjectId ];
+
+            var renderer = target.renderer;
+
+            if ( renderer == null ) return;
+
+            var sharedMats = renderer.sharedMaterials;
+
+            var _materialIndex = target.materialIndex;
+
+            if ( _materialIndex < 0 || _materialIndex >= sharedMats.Length ) return;
+
+            var sharedMat = sharedMats[ _materialIndex ];
+            if ( sharedMat == null ) return;
+
+            renderer.GetPropertyBlock( _propBlock, _materialIndex );
+
+            foreach ( var propId in _candidates )
+            {
+                if ( sharedMat.HasProperty( propId ) )
+                {
+                    _propBlock.SetTexture( propId, ARFoundationBridge.Instance.MasterCameraFeed );
+                    break;
+                }
+            }
+
+            _propBlock.SetColor( _colorId, Color.white );
+            _propBlock.SetColor( _baseColorId, Color.white );
+            _propBlock.SetColor( _tintColorId, Color.white );
+            renderer.SetPropertyBlock( _propBlock, _materialIndex );
+            _propBlock.Clear();
+        }
 
         private void OnEnable()
         {
@@ -72,18 +131,19 @@ namespace Felina.ARColoringBook
         private void OnDisable()
         {
             GetComponent<ARTrackedImageManager>()?.trackablesChanged.RemoveListener( OnTrackablesChanged );
+            if ( ARScannerManager.Instance != null )
+            {
+                ARScannerManager.Instance.OnTextureCaptured -= UpdateModel;
+            }
         }
 
         private void OnTrackablesChanged( ARTrackablesChangedEventArgs<ARTrackedImage> eventArgs )
         {
             // AR Foundation 6.3.1+ FIX: args.added no longer contains referenceImage metadata
             // We must wait for the first updated event to get the full data
-
-            // Track newly added images
             foreach ( var trackedImage in eventArgs.added )
             {
                 _pendingAdds.Add( trackedImage.trackableId );
-                // Debug.Log( $"[Felina] ARContentSpawner: Image added (pending metadata): trackableId={trackedImage.trackableId}" );
             }
 
             // Process updated images - spawn prefabs when we have metadata
@@ -95,20 +155,9 @@ namespace Felina.ARColoringBook
                     SpawnPrefabForImage( trackedImage );
                     _pendingAdds.Remove( trackedImage.trackableId );
                 }
-            }
-
-            // Handle removed images
-            foreach ( var pair in eventArgs.removed )
-            {
-                _pendingAdds.Remove( pair.Key );
-
-                // Find and destroy the instantiated prefab
-                var guid = pair.Value.referenceImage.guid;
-                if ( _instantiated.TryGetValue( guid.ToString(), out var instance ) )
+                else
                 {
-                    Destroy( instance );
-                    _instantiated.Remove( guid.ToString() );
-                    // Debug.Log( $"[Felina] ARContentSpawner: Removed prefab for image '{pair.Value.referenceImage.name}'" );
+                    _targetDataDictionary[ trackedImage.referenceImage.guid.ToString()].renderer.enabled =  trackedImage.trackingState == TrackingState.Tracking ;
                 }
             }
         }
@@ -116,34 +165,25 @@ namespace Felina.ARColoringBook
 
         private void SpawnPrefabForImage( ARTrackedImage trackedImage )
         {
-            var guid = trackedImage.referenceImage.guid.ToString();
-            // Debug.Log( $"################## ref img 4 {trackedImage.referenceImage.guid}" );
+            _lastObjectId = trackedImage.referenceImage.guid.ToString();
 
-            if ( _instantiated.ContainsKey( guid ) ) return;
+            if ( _instantiated.ContainsKey( _lastObjectId ) ) return;
 
             // Find prefab for this image
-            if ( _prefabDictionary.TryGetValue( guid, out var prefab ) && prefab != null )
+            if ( _targetDataDictionary.TryGetValue( _lastObjectId, out var target ) && target.prefab != null )
             {
-                var instance = Instantiate( prefab, trackedImage.transform );
+                var instance = Instantiate( target.prefab, trackedImage.transform );
                 instance.transform.SetLocalPositionAndRotation( Vector3.zero, Quaternion.identity );
                 instance.transform.localScale = Vector3.one;
 
-                _instantiated[ guid ] = instance;
-
-                // Verify ARPaintableObject exists
-                var paintable = instance.GetComponentInChildren<ARPaintableObject>();
-                if ( paintable != null )
-                {
-                    // Debug.Log( $"[Felina] ARContentSpawner: Spawned '{prefab.name}' for image '{trackedImage.referenceImage.name}' - ARPaintableObject found" );
-                }
-                else
-                {
-                    Debug.LogWarning( $"[Felina] ARContentSpawner: Spawned '{prefab.name}' for image '{trackedImage.referenceImage.name}' - ARPaintableObject NOT FOUND!" );
-                }
+                _instantiated[ _lastObjectId ] = instance;
+                var currentTarget = _targetDataDictionary[ _lastObjectId ];
+                currentTarget.renderer = instance.GetComponentInChildren<Renderer>( true );
+                _targetDataDictionary[ _lastObjectId ] = currentTarget;
             }
             else
             {
-                Debug.LogWarning( $"[Felina] ARContentSpawner: No prefab assigned for image (GUID: {guid})" );
+                Debug.LogWarning( $"[Felina] ARContentSpawner: No prefab assigned for image (GUID: {_lastObjectId})" );
             }
         }
     }
