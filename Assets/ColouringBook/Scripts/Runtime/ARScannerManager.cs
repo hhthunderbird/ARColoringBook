@@ -1,119 +1,93 @@
+ï»¿using Cysharp.Threading.Tasks;
+using Felina.ARColoringBook.Bridges;
+using Felina.ARColoringBook.Events;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
-using Unity.Burst;
-using UnityEngine.XR.ARFoundation;
-using UnityEngine.XR.ARSubsystems;
 
 namespace Felina.ARColoringBook
 {
-    /// <summary>
-    /// GPU performance quality presets
-    /// </summary>
-    public enum QualityPreset
+    [Serializable]
+    public struct ReferencePair
     {
-        /// <summary>Ultra: Full resolution cache (highest quality, slowest)</summary>
-        Ultra,
-        /// <summary>High: 75% resolution cache (great quality, faster)</summary>
-        High,
-        /// <summary>Medium: 50% resolution cache (good quality, much faster)</summary>
-        Medium,
-        /// <summary>Low: 25% resolution cache (acceptable quality, fastest)</summary>
-        Low
+        public string referenceName; // Must match ReferenceLibrary name exactly
+        public Texture2D originalTexture;
     }
 
     public class ARScannerManager : MonoBehaviour
     {
-        public static ARScannerManager Instance { get; private set; }
-
 #if UNITY_IOS && !UNITY_EDITOR
-        [DllImport("__Internal")] private static extern bool CheckStability( float3 f1, quaternion q1, float3 f2, quaternion q2, float f3, float f4, float f5 );
-        [DllImport("__Internal")] private static extern float CalculateQuality( float3 f1, float3 f2, float3 f3, float3 f4, float2 f5, float f6, float f7 );
-        [DllImport("__Internal")] private static unsafe extern void ComputeTransformMatrix( float f1, float f2, void* s, void* r );
-#else
-        [DllImport( "Felina" )] private static extern bool CheckStability( float3 f1, quaternion q1, float3 f2, quaternion q2, float f3, float f4, float f5 );
-        [DllImport( "Felina" )] private static extern float CalculateQuality( float3 f1, float3 f2, float3 f3, float3 f4, float2 f5, float f6, float f7 );
-        [DllImport( "Felina" )] private static unsafe extern void ComputeTransformMatrix( float f1, float f2, void* s, void* r );
+[DllImport("__Internal")] private static extern bool CheckStability( float3 f1, quaternion q1, float3 f2, quaternion q2, float f3, float f4, float f5 );
+        //[DllImport("__Internal")] private static extern float CalculateQuality( float3 f1, float3 f2, float3 f3, float3 f4, float2 f5, float f6, float f7 );
+        //[DllImport("__Internal")] private static unsafe extern void ComputeTransformMatrix( float a, float b, void* c, void* d );
+#else        
+        //[DllImport( "Felina" )] private static extern bool CheckStability( float3 a, quaternion b, float3 c, quaternion d, float e, float f, float g );
+        //[DllImport( "Felina" )] private static extern float CalculateQuality( float3 a, float3 b, float3 c, float3 d, float2 e, float f, float g );
+        [DllImport( "Felina" )] private static unsafe extern void ComputeTransformMatrix( float a, float b, void* c, void* d );
 #endif
-
-        [Header( "Architecture" )]
-        private IARBridge _arBridge;
-        [SerializeField] private MonoBehaviour _arBridgeComponent;
-        [Tooltip( "Reference to ARTrackedImageManager for accessing the image library" )]
-        [SerializeField] private ARTrackedImageManager _trackedImageManager;
-
-        /// <summary>
-        /// Public accessor for the reference image library (reads from ARTrackedImageManager)
-        /// </summary>
-        [SerializeField]
-        private XRReferenceImageLibrary _library;
-        
-
-        [Header( "Scanner Settings" )]
-        [SerializeField] private int _outputResolution = Internals.DEFAULT_OUTPUT_RESOLUTION;
-        [Range( 0f, 1f ), SerializeField] private float _captureThreshold = Internals.DEFAULT_CAPTURE_THRESHOLD;
-        [SerializeField] private bool _autoLock = true;
-        [SerializeField] private float _maxMoveSpeed = Internals.DEFAULT_MAX_MOVE_SPEED;
-        [SerializeField] private float _maxRotateSpeed = Internals.DEFAULT_MAX_ROTATE_SPEED;
-
-        [Header( "GPU Performance" )]
-        [Tooltip( "Quality preset for camera feed processing" )]
-        [SerializeField] private QualityPreset _qualityPreset = QualityPreset.High;
-        [SerializeField] private Material _unwarpMaterial;
-        [Tooltip( "Use direct blit (skip cache) - faster but no frame reuse" )]
-        [SerializeField] private bool _useDirectBlit = false;
-        [Tooltip( "Use combined shader (single-pass unwarp) - fastest, requires CombinedUnwarpShader" )]
-        [SerializeField] private bool _useCombinedShader = false;
-        [Tooltip( "Combined unwarp material (assign CombinedUnwarpShader material)" )]
-        [SerializeField] private Material _combinedUnwarpMaterial;
-
-        public event Action<string, RenderTexture, float> OnTextureCaptured;
+        public static ARScannerManager Instance { get; private set; }
         private Camera _arCamera;
-        [SerializeField, HideInInspector] private List<ScanTarget> _targetList = new();
-        private Dictionary<string, ScanTarget> _activeTargets = new();
-        private Dictionary<string, bool> _isLocked = new();
-        private Dictionary<string, float> _bestScores = new();
-        private Dictionary<string, RenderTexture> _capturedTextures = new();
+        private float3 _lastCamPos;
+        private quaternion _lastCamRot;
+
+        [Header( "Ground Truth Assets" )]
+        [SerializeField]
+        private List<ReferencePair> _referenceImages = new();
+        private readonly Dictionary<string, Texture2D> _refLookup = new();
+
+        [SerializeField] private Material _unwarpMaterial;
 
         private NativeArray<float2> _nativeScreenPoints;
         private NativeArray<float4x4> _nativeResultMatrix;
-        private float3 _lastCamPos;
-        private quaternion _lastCamRot;
-        public bool IsDeviceStable { get; private set; } = false;
-
-        private RenderTexture _cameraFeedCache;
-        private int _screenWidth;
-        private int _screenHeight;
 
         // Cache material property IDs for better performance
-        private static readonly int MainTexPropertyID = Shader.PropertyToID( "_MainTex" );
-        private static readonly int UnwarpPropertyID = Shader.PropertyToID( "_Unwarp" );
-        private static readonly int DisplayMatrixPropertyID = Shader.PropertyToID( "_DisplayMatrix" );
-        private static readonly Matrix4x4 IdentityMatrix = Matrix4x4.identity;
+        private static readonly int _refTexID = Shader.PropertyToID( "_RefTex" );
+        private static readonly int _mainTexPropertyID = Shader.PropertyToID( "_MainTex" );
+        private static readonly int _unwarpPropertyID = Shader.PropertyToID( "_Unwarp" );
+        private static readonly int _displayMatrixPropertyID = Shader.PropertyToID( "_DisplayMatrix" );
+        private Matrix4x4? _currentCameraMatrix;
+
+        private ScanTarget _target;
+        public event Action OnTextureCaptured;
+
+        private CancellationTokenSource _cancellationToken;
+        private ScanFeedbackEvent _feedbackEvent = new();
 
         private void Awake()
         {
+            if ( Instance != null ) Destroy( Instance );
             Instance = this;
-
-            if ( _arBridgeComponent is IARBridge bridge ) _arBridge = bridge;
-            else Debug.LogError( "[Felina] ARScannerManager: AR Bridge component does not implement IARBridge!" );
-
-            _activeTargets.Clear();
-            foreach ( var t in _targetList )
-            {
-                if ( !_activeTargets.ContainsKey( t.Name ) ) _activeTargets.Add( t.Name, t );
-            }
         }
 
-        void Start()
+        private void Start()
         {
-            if ( _arBridge != null ) _arCamera = _arBridge.GetARCamera();
-            _nativeScreenPoints = new NativeArray<float2>( 4, Allocator.Persistent );
-            _nativeResultMatrix = new NativeArray<float4x4>( 1, Allocator.Persistent );
+            foreach ( var pair in _referenceImages )
+            {
+                if ( !string.IsNullOrEmpty( pair.referenceName ) )
+                    _refLookup[ pair.referenceName ] = pair.originalTexture;
+            }
+            StartTask().Forget();
+        }
+
+        private async UniTaskVoid StartTask()
+        {
+            var ui = FindFirstObjectByType<UIController>();
+            if ( ui )
+                ui.OnCapture += ProcessRT;
+
+            await UniTask.WaitUntil( () => ARFoundationBridge.Instance != null );
+
+            ARFoundationBridge.Instance.OnTargetAdded += OnTargetAdded;
+            ARFoundationBridge.Instance.OnDisplayMatrixUpdated -= OnDisplayMatrixUpdated;
+
+            _arCamera = ARFoundationBridge.Instance.GetARCamera();
 
             if ( _arCamera != null )
             {
@@ -121,201 +95,37 @@ namespace Felina.ARColoringBook
                 _lastCamRot = _arCamera.transform.rotation;
             }
 
-            // Cache screen dimensions
-            _screenWidth = Screen.width;
-            _screenHeight = Screen.height;
-
-            // Create camera feed cache with quality scaling
-            if ( _arBridge != null )
-            {
-                var settings = _arBridge.RenderTextureSettings;
-
-                // Apply quality preset to reduce resolution (huge GPU savings!)
-                float scale = GetQualityScale( _qualityPreset );
-                int cacheWidth = Mathf.Max( 64, Mathf.RoundToInt( settings.Width * scale ) );
-                int cacheHeight = Mathf.Max( 64, Mathf.RoundToInt( settings.Height * scale ) );
-
-                _cameraFeedCache = new RenderTexture( cacheWidth, cacheHeight, 0, settings.Format )
-                {
-                    useMipMap = false,  // Never use mipmaps for intermediate cache
-                    autoGenerateMips = false,
-                    filterMode = FilterMode.Bilinear  // Bilinear is fastest for downsampling
-                };
-                _cameraFeedCache.Create();
-
-                // Only set target RT if not using direct blit mode
-                if ( !_useDirectBlit )
-                {
-                    _arBridge.SetTargetRenderTexture( _cameraFeedCache );
-                }
-
-                // Pre-create output RTs for all known targets
-                PreCreateOutputTextures();
-            }
-        }
-
-        /// <summary>
-        /// Get resolution scale factor for quality preset
-        /// </summary>
-        private float GetQualityScale( QualityPreset preset )
-        {
-            return preset switch
-            {
-                QualityPreset.Ultra => 1.0f,    // 100% (e.g., 1920×1080)
-                QualityPreset.High => 0.75f,     // 75%  (e.g., 1440×810)
-                QualityPreset.Medium => 0.5f,    // 50%  (e.g., 960×540)  ? Recommended
-                QualityPreset.Low => 0.25f,      // 25%  (e.g., 480×270)
-                _ => 0.5f
-            };
-        }
-
-        private void PreCreateOutputTextures()
-        {
-            if ( _arBridge == null ) return;
-
-            var chosenFormat = _arBridge.RenderTextureSettings.Format;
-
-            if ( chosenFormat == RenderTextureFormat.Default )
-            {
-                if ( SystemInfo.SupportsRenderTextureFormat( RenderTextureFormat.RGB565 ) )
-                    chosenFormat = RenderTextureFormat.RGB565;
-                else if ( SystemInfo.SupportsRenderTextureFormat( RenderTextureFormat.ARGB32 ) )
-                    chosenFormat = RenderTextureFormat.ARGB32;
-            }
-
-            // Get library from ARTrackedImageManager (single source of truth)
-            var library = _library;
-            if ( library != null )
-            {
-                for ( int i = 0; i < library.count; i++ )
-                {
-                    var imageName = library[ i ].name;
-
-                    var rt = new RenderTexture( _outputResolution, _outputResolution, 0, chosenFormat )
-                    {
-                        useMipMap = false,
-                        autoGenerateMips = false,
-                        filterMode = FilterMode.Bilinear
-                    };
-                    rt.Create();
-                    _capturedTextures[ imageName ] = rt;
-                }
-            }
-            else
-            {
-                Debug.LogWarning( "[Felina] No reference image library found! Make sure ARTrackedImageManager is assigned and has a library." );
-            }
-
-            // Debug.Log( $"[Felina] Pre-created {_capturedTextures.Count} output textures at {_outputResolution}×{_outputResolution} resolution." );
+            _nativeScreenPoints = new NativeArray<float2>( 4, Allocator.Persistent );
+            _nativeResultMatrix = new NativeArray<float4x4>( 1, Allocator.Persistent );
         }
 
         void OnDestroy()
         {
             if ( _nativeScreenPoints.IsCreated ) _nativeScreenPoints.Dispose();
             if ( _nativeResultMatrix.IsCreated ) _nativeResultMatrix.Dispose();
-            foreach ( var rt in _capturedTextures.Values ) if ( rt != null ) rt.Release();
-            _capturedTextures.Clear();
-            if ( _cameraFeedCache != null ) _cameraFeedCache.Release();
+            _cancellationToken?.Cancel();
+            _cancellationToken?.Dispose();
         }
 
-        void OnEnable() { if ( _arBridge != null ) _arBridge.OnTargetAdded += OnTargetAdded; }
-        void OnDisable() { if ( _arBridge != null ) _arBridge.OnTargetAdded -= OnTargetAdded; }
-
-        private int _frameCounter = 0;
-        private const int PROCESS_INTERVAL = 3; // Process every 3 frames instead of every frame
-        private bool _pendingProcess = false;
-        private struct PendingCapture
+        void OnEnable() => Start();
+        void OnDisable()
         {
-            public ScanTarget Target;
-            public float Score;
-        }
-        // Avoid Clear() allocations with pre-sized capacity
-        private List<PendingCapture> _pendingCaptures = new( 10 ); // Clear() is O(1) for Stack vs List
-
-        void Update()
-        {
-            if ( _arCamera == null ) return;
-
-            CalculateNativeStability();
-            if ( !IsDeviceStable ) return;
-
-            // Throttle processing to reduce GPU/CPU load
-            _frameCounter++;
-            if ( _frameCounter < PROCESS_INTERVAL ) return;
-            _frameCounter = 0;
-
-            // Frame N: Update camera feed cache (or skip if using direct blit)
-            if ( !_useDirectBlit )
-            {
-                _arBridge.GetCameraFeedRT();  // Blit camera ? cache
-
-                if ( _cameraFeedCache == null ) return;
-            }
-
-            // Evaluate all targets and queue captures
-            _pendingCaptures.Clear();
-            foreach ( var kvp in _activeTargets )
-            {
-                var target = kvp.Value;
-
-                // Use TryGetValue to avoid double dictionary lookup
-                if ( _isLocked.TryGetValue( target.Name, out var isLocked ) && isLocked ) continue;
-                if ( target.Transform == null ) continue;
-
-                var score = GetNativeQuality( target.Transform );
-
-                // Use TryGetValue for best scores too
-                if ( !_bestScores.TryGetValue( target.Name, out var bestScore ) )
-                {
-                    bestScore = 0f;
-                    _bestScores[ target.Name ] = bestScore;
-                }
-
-                // Add threshold to prevent processing for tiny improvements
-                const float MIN_IMPROVEMENT = 0.02f;
-                if ( score > bestScore + MIN_IMPROVEMENT )
-                {
-                    _bestScores[ target.Name ] = score;
-                    _pendingCaptures.Add( new PendingCapture { Target = target, Score = score } );
-                }
-            }
-
-
-
-            // Signal that we have captures to process next frame
-            _pendingProcess = _pendingCaptures.Count > 0;
+            ARFoundationBridge.Instance.OnDisplayMatrixUpdated -= OnDisplayMatrixUpdated;
+            ARFoundationBridge.Instance.OnTargetAdded -= OnTargetAdded;
         }
 
-        void LateUpdate()
-        {
-            // Frame N+1: Process queued captures (Blit #2: cache ? unwarp)
-            if ( !_pendingProcess ) return;
-            _pendingProcess = false;
+        private void OnDisplayMatrixUpdated( float4x4 m ) => _currentCameraMatrix = m;
 
-            foreach ( var capture in _pendingCaptures )
-            {
-                ProcessCaptureGPU( capture.Target, capture.Score );
-            }
-        }
-
-        private unsafe void ProcessCaptureGPU( ScanTarget target, float score )
+        private unsafe void ProcessCaptureGPU()
         {
+            ARFoundationBridge.Instance.UpdateCameraRT();
+
             if ( !_nativeScreenPoints.IsCreated || !_nativeResultMatrix.IsCreated ) return;
 
-            // Direct blit mode requires valid cache, cached mode checks in Update()
-            if ( !_useDirectBlit && _cameraFeedCache == null ) return;
-
-            // RT should already exist; if not, something went wrong
-            if ( !_capturedTextures.TryGetValue( target.Name, out var destRT ) )
-            {
-                Debug.LogError( $"[Felina] No output RT found for target '{target.Name}'! This should have been pre-created." );
-                return;
-            }
-
-            var size = target.Size;
+            var size = _target.Size;
             var hx = size.x * 0.5f;
             var hy = size.y * 0.5f;
-            var t = target.Transform;
+            var t = _target.Transform;
 
             // Cache transform using Unity.Mathematics types for better performance
             var tPos = ( float3 ) t.position;
@@ -331,100 +141,37 @@ namespace Felina.ARColoringBook
             _nativeScreenPoints[ 2 ] = ToScreen( tPos + halfExtentX + halfExtentZ );
             _nativeScreenPoints[ 3 ] = ToScreen( tPos - halfExtentX + halfExtentZ );
 
-            ComputeTransformMatrix( _screenWidth, _screenHeight, _nativeScreenPoints.GetUnsafePtr(), _nativeResultMatrix.GetUnsafePtr() );
+            var resolution = Screen.currentResolution;
+
+            ComputeTransformMatrix( resolution.width, resolution.height, _nativeScreenPoints.GetUnsafePtr(), _nativeResultMatrix.GetUnsafePtr() );
 
             var H = _nativeResultMatrix[ 0 ];
 
-            // GPU Optimization: Choose rendering path based on configuration
-            if ( _useCombinedShader && _combinedUnwarpMaterial != null )
-            {
-                // COMBINED SHADER MODE: Single-pass from camera ? output (50% faster!)
-                // This is the FASTEST option - eliminates intermediate cache entirely
+            var cameraSource = ARFoundationBridge.Instance.MasterCameraFeed;
+            var tempRT = RenderTexture.GetTemporary( cameraSource.width, cameraSource.height, 0, cameraSource.format );
 
-                // Get AR camera background material
-                var arCamBackground = _arBridge.GetARCameraBackground();
-                if ( arCamBackground != null )
-                {
-                    // Copy camera texture to combined shader
-                    var camTexture = arCamBackground.material.GetTexture( "_MainTex" );
-                    _combinedUnwarpMaterial.SetTexture( MainTexPropertyID, camTexture );
-                    _combinedUnwarpMaterial.SetMatrix( UnwarpPropertyID, H );
-                    _combinedUnwarpMaterial.SetMatrix( DisplayMatrixPropertyID, IdentityMatrix );
+            if ( _target.Name == null ) return;
 
-                    // Single blit: Camera ? Output (with unwarp applied in shader)
-                    Graphics.Blit( null, destRT, _combinedUnwarpMaterial );
-                }
-                else
-                {
-                    Debug.LogWarning( "[Felina] ARCameraBackground not found, falling back to cached mode" );
-                    // Fallback to cached mode
-                    _unwarpMaterial.SetTexture( MainTexPropertyID, _cameraFeedCache );
-                    _unwarpMaterial.SetMatrix( UnwarpPropertyID, H );
-                    _unwarpMaterial.SetMatrix( DisplayMatrixPropertyID, IdentityMatrix );
-                    Graphics.Blit( null, destRT, _unwarpMaterial );
-                }
-            }
-            else if ( _useDirectBlit )
-            {
-                // DIRECT BLIT MODE: Single pass from camera ? output
-                // Saves 1 intermediate RT copy (30-40% faster!)
-                _arBridge.GetCameraFeedRT();  // Update camera feed
+            _refLookup.TryGetValue( _target.Name, out var groundTruth );
 
-                // Use AR camera background material as source
-                var arCamMaterial = _arBridge.GetARCameraBackground()?.material;
-                if ( arCamMaterial != null )
-                {
-                    // Apply homography to camera background shader
-                    arCamMaterial.SetMatrix( UnwarpPropertyID, H );
-                    Graphics.Blit( null, destRT, arCamMaterial );
-                    // Note: This modifies the AR background temporarily, but it's reset next frame
-                }
-                else
-                {
-                    // Fallback: Use cached mode
-                    _unwarpMaterial.SetTexture( MainTexPropertyID, _cameraFeedCache );
-                    _unwarpMaterial.SetMatrix( UnwarpPropertyID, H );
-                    _unwarpMaterial.SetMatrix( DisplayMatrixPropertyID, IdentityMatrix );
-                    Graphics.Blit( null, destRT, _unwarpMaterial );
-                }
-            }
+            if ( groundTruth != null )
+                _unwarpMaterial.SetTexture( _refTexID, groundTruth );
             else
-            {
-                // CACHED MODE: Two-pass blit (camera ? cache ? output)
-                // Slower but allows frame reuse if multiple targets processed
-                _unwarpMaterial.SetTexture( MainTexPropertyID, _cameraFeedCache );
-                _unwarpMaterial.SetMatrix( UnwarpPropertyID, H );
-                _unwarpMaterial.SetMatrix( DisplayMatrixPropertyID, IdentityMatrix );
-                Graphics.Blit( null, destRT, _unwarpMaterial );
-            }
+                _unwarpMaterial.SetTexture( _refTexID, Texture2D.whiteTexture );
 
-            OnTextureCaptured?.Invoke( target.Name, destRT, score );
+            _unwarpMaterial.SetTexture( _mainTexPropertyID, cameraSource );
+            _unwarpMaterial.SetMatrix( _unwarpPropertyID, H );
 
-            if ( _autoLock && score >= _captureThreshold )
-            {
-                _isLocked[ target.Name ] = true;
-            }
-        }
+            var matrixToUse = _currentCameraMatrix.GetValueOrDefault( Matrix4x4.identity );
+            _unwarpMaterial.SetMatrix( _displayMatrixPropertyID, matrixToUse );
 
-        private void CalculateNativeStability()
-        {
-            _arCamera.transform.GetPositionAndRotation( out var curPos, out var curRot );
-            var dt = Time.deltaTime;
-            IsDeviceStable = CheckStability( curPos, curRot, _lastCamPos, _lastCamRot, dt, _maxMoveSpeed, _maxRotateSpeed );
-            _lastCamPos = curPos;
-            _lastCamRot = curRot;
-        }
+            Graphics.Blit( cameraSource, tempRT, _unwarpMaterial );
 
-        private float GetNativeQuality( Transform targetTransform )
-        {
-            _arCamera.transform.GetPositionAndRotation( out var camPosVec, out var camRot );
-            var camPos = ( float3 ) camPosVec;
-            var camFwd = ( float3 ) _arCamera.transform.forward;
-            var imgPos = ( float3 ) targetTransform.position;
-            var imgUp = ( float3 ) targetTransform.up;
-            var sPos3 = _arCamera.WorldToScreenPoint( imgPos );
-            var sPos = ( sPos3.z > 0 ) ? new float2( sPos3.x, sPos3.y ) : new float2( -1, -1 );
-            return CalculateQuality( camPos, camFwd, imgPos, imgUp, sPos, _screenWidth, _screenHeight );
+            Graphics.Blit( tempRT, cameraSource );
+
+            RenderTexture.ReleaseTemporary( tempRT );
+
+            OnTextureCaptured?.Invoke();
         }
 
         private float2 ToScreen( float3 worldPos )
@@ -433,63 +180,482 @@ namespace Felina.ARColoringBook
             return new float2( s.x, s.y );
         }
 
-        // Burst-compiled vector math helpers for better performance
-        [BurstCompile]
-        private static float3 CalculateCornerOffset( float3 right, float3 forward, float hx, float hz, int cornerId )
-        {
-            // Corner pattern: 0=(-x,-z), 1=(+x,-z), 2=(+x,+z), 3=(-x,+z)
-            var signX = ( cornerId & 1 ) == 0 ? -1f : 1f;
-            var signZ = ( cornerId & 2 ) == 0 ? -1f : 1f;
-            return right * ( hx * signX ) + forward * ( hz * signZ );
-        }
-
-        [BurstCompile]
-        private static float3 Add( float3 a, float3 b ) => a + b;
-
         private void OnTargetAdded( ScanTarget incomingTarget )
         {
-            if ( _activeTargets.ContainsKey( incomingTarget.Name ) )
-            {
-                var existing = _activeTargets[ incomingTarget.Name ];
-                existing.Transform = incomingTarget.Transform;
-                existing.IsTracking = true;
-                _activeTargets[ incomingTarget.Name ] = existing;
-            }
-            else
-            {
-                _activeTargets.Add( incomingTarget.Name, incomingTarget );
-            }
+            _target = incomingTarget;
+            _refLookup.TryGetValue( _target.Name, out var tx );
+            EventManager.TriggerEvent( new ToggleUIEvent( true, tx ) );
+            _cancellationToken = new CancellationTokenSource();
+            UIFeedback( _cancellationToken.Token ).Forget();
         }
 
-        public RenderTexture GetCapturedTexture( string targetName ) => _capturedTextures.ContainsKey( targetName ) ? _capturedTextures[ targetName ] : null;
-        public void AddScanTarget( ScanTarget newTarget ) { _targetList.Add( newTarget ); }
-
-        /// <summary>
-        /// Get image name by GUID (useful for ARTrackedImage.referenceImage.guid)
-        /// </summary>
-        public string GetImageName( System.Guid guid )
+        private async UniTaskVoid UIFeedback( CancellationToken token )
         {
-            var library = _library;
-            if ( library == null ) return null;
+            //while ( !token.IsCancellationRequested )
+            //{
+            //    _feedbackEvent.Set( CalculateNativeStability(), GetNativeQuality() / Settings.Instance.CAPTURE_THRESHOLD );
 
-            for ( int i = 0; i < library.count; i++ )
+            //    EventManager.TriggerEvent( _feedbackEvent );
+
+            //    await UniTask.Delay( 100, cancellationToken: token );
+            //}
+
+            while ( !token.IsCancellationRequested )
             {
-                if ( library[ i ].guid == guid )
-                    return library[ i ].name;
+                // 1. Prepare Data
+                _arCamera.transform.GetPositionAndRotation( out var camPos, out var camRot );
+                var sPos3 = _arCamera.WorldToScreenPoint( _target.Transform.position );
+                var sPos = ( sPos3.z > 0 ) ? new float2( sPos3.x, sPos3.y ) : new float2( -1, -1 );
+                var settings = Settings.Instance;
+
+                // 2. Create Containers for Results (Allocator.TempJob is fast/transient)
+                NativeReference<bool> outStable = new NativeReference<bool>( Allocator.TempJob );
+                NativeReference<float> outQuality = new NativeReference<float>( Allocator.TempJob );
+
+                var maxMoveSpd = settings.MAX_MOVE_SPEED;
+                var maxRotSpd = settings.MAX_ROTATE_SPEED;
+                var minScanDist = settings.MIN_SCAN_DIST;
+                var maxScanDist = settings.MAX_SCAN_DIST;
+                var distPenalty = settings.DIST_PENALTY;
+                var weightAngle = settings.WEIGHT_ANGLE;
+                var weightCenter = settings.WEIGHT_CENTER;
+
+
+                // 3. Create the Job
+                var job = new ScannerJob
+                {
+                    // Dynamic Data
+                    curPos = camPos,
+                    curRot = camRot,
+                    lastPos = _lastCamPos,
+                    lastRot = _lastCamRot,
+                    dt = Time.deltaTime,
+                    camFwd = _arCamera.transform.forward,
+                    imgPos = _target.Transform.position,
+                    imgUp = _target.Transform.up,
+                    imgScreenPos = sPos,
+                    screenW = Screen.width,
+                    screenH = Screen.height,
+
+                    // Settings Data
+                    maxMoveSpd = maxMoveSpd,
+                    maxRotSpd = maxRotSpd,
+                    minScanDist = minScanDist,
+                    maxScanDist = maxScanDist,
+                    distPenalty = distPenalty,
+                    weightAngle = weightAngle,
+                    weightCenter = weightCenter,
+
+                    // Outputs
+                    resultStability = outStable,
+                    resultQuality = outQuality
+                };
+
+                // 4. Schedule & Complete
+                // For a single item, immediate completion is fine and still gets Burst speedup.
+                JobHandle handle = job.Schedule();
+                handle.Complete(); // Force it to finish NOW so we can read results
+
+                // 5. Read Results
+                bool isStable = outStable.Value;
+                float quality = outQuality.Value;
+
+                // 6. Update State
+                _lastCamPos = camPos;
+                _lastCamRot = camRot;
+
+                // 7. Clean up Memory
+                outStable.Dispose();
+                outQuality.Dispose();
+
+                // 8. Fire Event
+                _feedbackEvent.Set( isStable, quality / settings.CAPTURE_THRESHOLD );
+                EventManager.TriggerEvent( _feedbackEvent );
+
+                await UniTask.Delay( 100, cancellationToken: token );
             }
-            return null;
         }
 
-        /// <summary>
-        /// Get image name by index
-        /// </summary>
-        public string GetImageName( int index )
+        private async void ProcessRT()
         {
-            var library = _library;
-            if ( library == null || index < 0 || index >= library.count )
-                return null;
-
-            return library[ index ].name;
+            _cancellationToken?.Cancel();
+            await UniTask.WaitForEndOfFrame();
+            ProcessCaptureGPU();
         }
+
+        // --- INLINED JOB (No ScannerMath dependency) ---
+        [BurstCompile]
+        public struct ScannerJob : IJob
+        {
+            // Inputs
+            [ReadOnly] public float3 curPos;
+            [ReadOnly] public quaternion curRot;
+            [ReadOnly] public float3 lastPos;
+            [ReadOnly] public quaternion lastRot;
+            [ReadOnly] public float dt;
+
+            [ReadOnly] public float3 camFwd;
+            [ReadOnly] public float3 imgPos;
+            [ReadOnly] public float3 imgUp;
+            [ReadOnly] public float2 imgScreenPos;
+            [ReadOnly] public float screenW;
+            [ReadOnly] public float screenH;
+
+            // Settings
+            [ReadOnly] public float maxMoveSpd;
+            [ReadOnly] public float maxRotSpd;
+            [ReadOnly] public float minScanDist;
+            [ReadOnly] public float maxScanDist;
+            [ReadOnly] public float distPenalty;
+            [ReadOnly] public float weightAngle;
+            [ReadOnly] public float weightCenter;
+
+            // Outputs
+            [WriteOnly] public NativeReference<bool> resultStability;
+            [WriteOnly] public NativeReference<float> resultQuality;
+
+            public void Execute()
+            {
+                // --- 1. CHECK STABILITY ---
+                float distSq = math.distancesq( curPos, lastPos );
+                float _dt = dt <= 1e-5f ? 0.016f : dt;
+
+                float maxDist = maxMoveSpd * _dt;
+                bool isStable = true;
+
+                if ( distSq > maxDist * maxDist )
+                {
+                    isStable = false;
+                }
+                else
+                {
+                    float dot = math.dot( curRot, lastRot );
+                    float absDot = math.abs( dot );
+                    float maxAngleDeg = maxRotSpd * _dt;
+                    float maxAngleRad = math.radians( maxAngleDeg );
+                    float minCos = math.cos( maxAngleRad * 0.5f );
+
+                    if ( absDot < minCos ) isStable = false;
+                }
+
+                resultStability.Value = isStable;
+
+                // --- 2. CHECK QUALITY ---
+                if ( isStable )
+                {
+                    // Angle Score
+                    float3 negFwd = -camFwd;
+                    float angleScore = math.saturate( math.dot( imgUp, negFwd ) );
+
+                    // Center Score
+                    float centerScore = 0.0f;
+                    if ( imgScreenPos.x >= 0 && imgScreenPos.y >= 0 )
+                    {
+                        var screenCenter = new float2( screenW * 0.5f, screenH * 0.5f );
+                        var sqrDistCenter = math.distancesq( imgScreenPos, screenCenter );
+                        var halfH = screenH * 0.5f;
+                        var sqrMaxDist = halfH * halfH;
+                        centerScore = math.saturate( 1.0f - ( sqrDistCenter / sqrMaxDist ) );
+                    }
+
+                    // Distance Score
+                    var sqrDistCam = math.distancesq( curPos, imgPos );
+                    var distScore = 1.0f;
+                    var minSq = minScanDist * minScanDist;
+                    var maxSq = maxScanDist * maxScanDist;
+
+                    if ( sqrDistCam < minSq || sqrDistCam > maxSq )
+                    {
+                        distScore = distPenalty;
+                    }
+
+                    resultQuality.Value = ( angleScore * weightAngle ) + ( centerScore * weightCenter * distScore );
+                }
+                else
+                {
+                    resultQuality.Value = 0.0f;
+                }
+            }
+        }
+
+        //private bool CalculateNativeStability()
+        //{
+        //    _arCamera.transform.GetPositionAndRotation( out var curPos, out var curRot );
+        //    var dt = Time.deltaTime;
+
+        //    // Store current before overwriting? 
+        //    // NOTE: Your original code updated _lastCamPos AFTER the check. 
+        //    // Ensure you pass the PREVIOUS frame's data, then update it.
+        //    var isStable = ScannerMath.CheckStability(
+        //        ( float3 ) curPos, curRot,
+        //        _lastCamPos, _lastCamRot,
+        //        dt,
+        //        Settings.Instance.MAX_MOVE_SPEED,
+        //        Settings.Instance.MAX_ROTATE_SPEED
+        //    );
+
+        //    _lastCamPos = ( float3 ) curPos;
+        //    _lastCamRot = curRot;
+
+        //    return isStable;
+        //}
+
+        //private float GetNativeQuality()
+        //{
+        //    _arCamera.transform.GetPositionAndRotation( out var camPosVec, out var camRot );
+        //    var camPos = ( float3 ) camPosVec;
+        //    var camFwd = ( float3 ) _arCamera.transform.forward;
+        //    var imgPos = ( float3 ) _target.Transform.position;
+        //    var imgUp = ( float3 ) _target.Transform.up;
+        //    var sPos3 = _arCamera.WorldToScreenPoint( imgPos );
+        //    var sPos = ( sPos3.z > 0 ) ? new float2( sPos3.x, sPos3.y ) : new float2( -1, -1 );
+
+        //    var stg = Settings.Instance;
+        //    // Use the C# version
+        //    return ScannerMath.CalculateQuality(
+        //        camPos, camFwd, imgPos, imgUp, sPos,
+        //        Screen.width, Screen.height, stg.MIN_SCAN_DIST, stg.MAX_SCAN_DIST, stg.DIST_PENALTY, stg.WEIGHT_ANGLE, stg.WEIGHT_CENTER
+        //    );
+        //}
+
+        ///// <summary>
+        ///// Replaces Felina.cpp CheckStability
+        ///// </summary>
+        //[BurstCompile]
+        //public bool CheckStability( float3 curPos, quaternion curRot, float3 lastPos, quaternion lastRot, float dt, float maxMoveSpeed, float maxRotSpeed )
+        //{
+        //    // --- 1. Position Check (Distance Squared) ---
+        //    // Faster than Vector3.Distance because we avoid the Square Root
+        //    float distSq = math.distancesq( curPos, lastPos );
+
+        //    // Safety check for bad dt
+        //    if ( dt <= 1e-5f ) dt = 0.016f;
+
+        //    // Calculate max allowed distance squared once
+        //    float maxDist = maxMoveSpeed * dt;
+        //    float maxDistSq = maxDist * maxDist;
+
+        //    // Fail early if position moved too much
+        //    if ( distSq > maxDistSq ) return false;
+
+        //    // --- 2. Rotation Check (Dot Product) ---
+        //    // math.dot is the fastest possible way to compare rotations (4 muls, 3 adds).
+        //    float dot = math.dot( curRot, lastRot );
+
+        //    // "abs" handles the quaternion double-cover (q == -q)
+        //    float absDot = math.abs( dot );
+
+        //    // --- OPTIMIZATION: Compare Cosines instead of Angles ---
+        //    // Instead of calculating the Angle (expensive 'acos'), 
+        //    // we calculate the Cosine of the Allowed Angle (cheap).
+        //    //
+        //    // Logic: 
+        //    // If Angle < Limit
+        //    // Then Cos(Angle) > Cos(Limit)  (Because Cos decreases as Angle increases)
+        //    // And since dot = cos(theta/2), we check: absDot > cos(Limit/2)
+
+        //    float maxAngleDeg = maxRotSpeed * dt;
+        //    float maxAngleRad = math.radians( maxAngleDeg );
+
+        //    // This is the threshold. If alignment (dot) is stronger than this, we are stable.
+        //    float minCos = math.cos( maxAngleRad * 0.5f );
+
+        //    return absDot >= minCos;
+        //}
+
+        ///// <summary>
+        ///// Replaces Felina.cpp CalculateQuality
+        ///// </summary>
+        //[BurstCompile]
+        //public float CalculateQuality( float3 camPos, float3 camFwd, float3 imgPos, float3 imgUp, float2 imgScreenPos, float screenWidth, float screenHeight )
+        //{
+        //    var settings = Settings.Instance;
+
+        //    // 1. Angle Score (Dot Product)
+        //    // How much is the image facing the camera?
+        //    var negFwd = -camFwd;
+        //    var angleScore = math.saturate( math.dot( imgUp, negFwd ) );
+
+        //    // 2. Center Score
+        //    // Is the image in the center of the screen?
+        //    if ( imgScreenPos.x < 0 || imgScreenPos.y < 0 ) return 0.0f; // Behind camera
+
+        //    var screenCenter = new float2( screenWidth * 0.5f, screenHeight * 0.5f );
+        //    var sqrDistCenter = math.distancesq( imgScreenPos, screenCenter );
+
+        //    // Normalize by half-height squared (vertical radius)
+        //    var halfH = screenHeight * 0.5f;
+        //    var sqrMaxDist = halfH * halfH;
+
+        //    var centerScore = math.saturate( 1.0f - ( sqrDistCenter / sqrMaxDist ) );
+
+        //    // 3. Distance Score (The Penalty Logic)
+        //    var sqrDistCam = math.distancesq( camPos, imgPos );
+        //    var distScore = 1.0f;
+
+        //    var minSq = settings.MIN_SCAN_DIST * settings.MIN_SCAN_DIST;
+        //    var maxSq = settings.MAX_SCAN_DIST * settings.MAX_SCAN_DIST;
+
+        //    // Apply penalty if out of range
+        //    if ( sqrDistCam < minSq || sqrDistCam > maxSq )
+        //    {
+        //        distScore = settings.DIST_PENALTY;
+        //    }
+
+        //    // Final Weighted Score
+        //    // Note: Now using the Settings values instead of hardcoded 0.6/0.4
+        //    return ( angleScore * settings.WEIGHT_ANGLE ) + ( centerScore * settings.WEIGHT_CENTER * distScore );
+        //}
+        //[BurstCompile]
+        //public struct ScannerJob : IJob
+        //{
+        //    // --- Inputs ---
+        //    [ReadOnly] public float3 curPos;
+        //    [ReadOnly] public quaternion curRot;
+        //    [ReadOnly] public float3 lastPos;
+        //    [ReadOnly] public quaternion lastRot;
+        //    [ReadOnly] public float dt;
+
+        //    [ReadOnly] public float3 camFwd;
+        //    [ReadOnly] public float3 imgPos;
+        //    [ReadOnly] public float3 imgUp;
+        //    [ReadOnly] public float2 imgScreenPos;
+        //    [ReadOnly] public float screenW;
+        //    [ReadOnly] public float screenH;
+
+        //    // --- Settings (Pass by Value) ---
+        //    [ReadOnly] public float maxMoveSpd;
+        //    [ReadOnly] public float maxRotSpd;
+        //    [ReadOnly] public float minScanDist;
+        //    [ReadOnly] public float maxScanDist;
+        //    [ReadOnly] public float distPenalty;
+        //    [ReadOnly] public float weightAngle;
+        //    [ReadOnly] public float weightCenter;
+
+        //    // --- Outputs (Must be NativeArray) ---
+        //    // We use an array of length 1 to store the single result
+        //    [WriteOnly] public NativeReference<bool> resultStability;
+        //    [WriteOnly] public NativeReference<float> resultQuality;
+
+        //    public void Execute()
+        //    {
+        //        // 1. Check Stability
+        //        bool stable = ScannerMath.CheckStability(
+        //            curPos, curRot, lastPos, lastRot, dt,
+        //            maxMoveSpd, maxRotSpd
+        //        );
+
+        //        resultStability.Value = stable;
+
+        //        // 2. Check Quality (Only if stable to save perf, or always if you prefer)
+        //        if ( stable )
+        //        {
+        //            resultQuality.Value = ScannerMath.CalculateQuality(
+        //                curPos, camFwd, imgPos, imgUp, imgScreenPos,
+        //                screenW, screenH,
+        //                minScanDist, maxScanDist, distPenalty,
+        //                weightAngle, weightCenter
+        //            );
+        //        }
+        //        else
+        //        {
+        //            resultQuality.Value = 0.0f;
+        //        }
+        //    }
+        //}
     }
+
+
+    ////[BurstCompile]
+    //public static class ScannerMath
+    //{
+    //    /// <summary>
+    //    /// Replaces Felina.cpp CheckStability
+    //    /// </summary>
+    //    //[BurstCompile]
+    //    public static bool CheckStability( float3 curPos, quaternion curRot, float3 lastPos, quaternion lastRot, float dt, float maxMoveSpeed, float maxRotSpeed )
+    //    {
+    //        // --- 1. Position Check (Distance Squared) ---
+    //        // Faster than Vector3.Distance because we avoid the Square Root
+    //        float distSq = math.distancesq( curPos, lastPos );
+
+    //        // Safety check for bad dt
+    //        if ( dt <= 1e-5f ) dt = 0.016f;
+
+    //        // Calculate max allowed distance squared once
+    //        float maxDist = maxMoveSpeed * dt;
+    //        float maxDistSq = maxDist * maxDist;
+
+    //        // Fail early if position moved too much
+    //        if ( distSq > maxDistSq ) return false;
+
+    //        // --- 2. Rotation Check (Dot Product) ---
+    //        // math.dot is the fastest possible way to compare rotations (4 muls, 3 adds).
+    //        float dot = math.dot( curRot, lastRot );
+
+    //        // "abs" handles the quaternion double-cover (q == -q)
+    //        float absDot = math.abs( dot );
+
+    //        // --- OPTIMIZATION: Compare Cosines instead of Angles ---
+    //        // Instead of calculating the Angle (expensive 'acos'), 
+    //        // we calculate the Cosine of the Allowed Angle (cheap).
+    //        //
+    //        // Logic: 
+    //        // If Angle < Limit
+    //        // Then Cos(Angle) > Cos(Limit)  (Because Cos decreases as Angle increases)
+    //        // And since dot = cos(theta/2), we check: absDot > cos(Limit/2)
+
+    //        float maxAngleDeg = maxRotSpeed * dt;
+    //        float maxAngleRad = math.radians( maxAngleDeg );
+
+    //        // This is the threshold. If alignment (dot) is stronger than this, we are stable.
+    //        float minCos = math.cos( maxAngleRad * 0.5f );
+
+    //        return absDot >= minCos;
+    //    }
+
+    //    /// <summary>
+    //    /// Replaces Felina.cpp CalculateQuality
+    //    /// </summary>
+    //    //[BurstCompile]                          
+    //    public static float CalculateQuality( float3 camPos, float3 camFwd, float3 imgPos, float3 imgUp, float2 imgScreenPos, float screenWidth, float screenHeight, float minScanDist, float maxScanDist, float distPenalty, float weightAngle, float weightCenter )
+    //    {
+    //        //var settings = Settings.Instance;
+
+    //        // 1. Angle Score (Dot Product)
+    //        // How much is the image facing the camera?
+    //        var negFwd = -camFwd;
+    //        var angleScore = math.saturate( math.dot( imgUp, negFwd ) );
+
+    //        // 2. Center Score
+    //        // Is the image in the center of the screen?
+    //        if ( imgScreenPos.x < 0 || imgScreenPos.y < 0 ) return 0.0f; // Behind camera
+
+    //        var screenCenter = new float2( screenWidth * 0.5f, screenHeight * 0.5f );
+    //        var sqrDistCenter = math.distancesq( imgScreenPos, screenCenter );
+
+    //        // Normalize by half-height squared (vertical radius)
+    //        var halfH = screenHeight * 0.5f;
+    //        var sqrMaxDist = halfH * halfH;
+
+    //        var centerScore = math.saturate( 1.0f - ( sqrDistCenter / sqrMaxDist ) );
+
+    //        // 3. Distance Score (The Penalty Logic)
+    //        var sqrDistCam = math.distancesq( camPos, imgPos );
+    //        var distScore = 1.0f;
+
+    //        var minSq = minScanDist * minScanDist;
+    //        var maxSq = maxScanDist * maxScanDist;
+
+    //        // Apply penalty if out of range
+    //        if ( sqrDistCam < minSq || sqrDistCam > maxSq )
+    //        {
+    //            distScore = distPenalty;
+    //        }
+
+    //        // Final Weighted Score
+    //        // Note: Now using the Settings values instead of hardcoded 0.6/0.4
+    //        return ( angleScore * weightAngle ) + ( centerScore * weightCenter * distScore );
+    //    }
+    //}
 }
