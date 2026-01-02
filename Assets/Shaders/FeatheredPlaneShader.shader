@@ -1,6 +1,4 @@
-﻿// This shader only works with convex polygon meshes where the second set of uv coordinates
-// scales from 0 - 1, with 0 being the center of the mesh, and 1 being the edge of the mesh.
-Shader "Unlit/FeatheredPlaneShader"
+﻿Shader "Unlit/FeatheredPlaneShader"
 {
     Properties
     {
@@ -64,7 +62,6 @@ Shader "Unlit/FeatheredPlaneShader"
             fixed4 frag (v2f i) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
-
                 fixed4 col = tex2D(_MainTex, i.uv) * _TexTintColor;
                 col = lerp( _PlaneColor, col, col.a);
                 // Fade out from as we pass the edge.

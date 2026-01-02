@@ -14,7 +14,6 @@ TagManager:
   - 
   - 
   - PostProcessing
-  - Screen Space
   - 
   - 
   - 
@@ -35,7 +34,8 @@ TagManager:
   - 
   - 
   - 
-  - XR Simulation
+  - 
+  - 
   - 
   m_SortingLayers:
   - name: Default

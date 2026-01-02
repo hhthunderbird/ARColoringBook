@@ -76,7 +76,7 @@ namespace Felina.ARColoringBook
             if ( settings != null )
             {
                 settings.InitializeRuntimeValues();
-                Debug.Log( "[GameSettings] Runtime values initialized!" );
+                Debug.Log( "[GameSettings] \u2699 Runtime values initialized!" );
             }
         }
 
@@ -143,7 +143,7 @@ namespace Felina.ARColoringBook
             {
                 preloaded.Add( settingsAsset );
                 PlayerSettings.SetPreloadedAssets( preloaded.ToArray() );
-                Debug.Log( $"[Settings] Auto-registered '{settingsAsset.name}' to Preloaded Assets!" );
+                Debug.Log( $"[GameSettings] Auto-registered '{settingsAsset.name}' to Preloaded Assets!" );
             }
         }
 
@@ -167,7 +167,7 @@ namespace Felina.ARColoringBook
                 }
                 else
                 {
-                    Debug.LogError( "[GameSettings] BUILD FAILURE: Could not find a 'Settings' asset in the project! Please create one via Create > ColouringBook > Settings." );
+                    Debug.LogError( "[GameSettings] \u274C BUILD FAILURE: Could not find a 'Settings' asset in the project! Please create one via Create > ColouringBook > Settings." );
                 }
             }
         }
