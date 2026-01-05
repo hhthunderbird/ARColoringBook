@@ -43,86 +43,27 @@ Subject to your compliance with this License and the Unity Asset Store EULA, Fel
 
 #### Personal & Commercial Projects
 
-**You MAY**:
-- ? Use in personal hobby projects
-- ? Use in educational projects  
-- ? Use in commercial projects (freelance, company, startup)
-- ? Include in free applications/games
-- ? Include in paid applications/games
-- ? Modify source code to fit your project needs
-- ? Create derivative works based on the Software
-- ? Use in unlimited projects (per licensee)
-
-**Real-World Examples**:
-```
-? Indie developer creates AR coloring book app and sells it ? ALLOWED
-? Studio builds educational AR flashcard game ? ALLOWED
-? Freelancer uses it in multiple client projects ? ALLOWED
-? Company ships AR museum guide app ? ALLOWED
-? Same developer uses in 10 different games ? ALLOWED
-```
+- [x] Use in personal, educational, or commercial projects
+- [x] Include in free or paid applications/games
+- [x] Modify source code for your project's needs
+- [x] Create derivative works based on the Software
 
 #### Per-Seat Licensing
-
-**How It Works**:
-- ?? **One license = One developer seat**
-- ?? **Valid for unlimited projects** by that developer
-- ?? **Team of 5 developers = 5 licenses** required
-- ?? License tied to individual, not project
-
-**Examples**:
-```
-? Buy 1 license, share with 3 team members ? NOT ALLOWED
-? Buy 3 licenses, each team member gets one ? ALLOWED
-? One developer, 10 projects using this package ? ALLOWED
-? Developer leaves, new developer needs new license ? CORRECT
-```
+- [x] One license covers one developer/seat
+- [x] Additional team members require separate licenses
+- [x] Valid across unlimited projects by the licensee
 
 ### Restrictions
 
 #### You **MAY NOT**:
 
-**? Redistribute Source Code**
-- Cannot resell this package on any marketplace
-- Cannot share with other developers (even within your company)
-- Cannot upload to public repositories with source exposed
-- Cannot create derivative asset store packages
-
-**? Share Licenses**
-- Each developer needs their own license purchase
-- Cannot use one license for multiple people
-- Cannot transfer license to another person without authorization
-
-**? Extract & Resell Components**
-- Cannot extract and redistribute individual scripts/components
-- Cannot create standalone packages from parts of this system
-- Cannot sell modified versions as separate products
-
-**? Create Competing Products**
-- Cannot use this code to create competing AR tracking packages
-- Cannot rebrand and sell as your own AR solution
-
-**? Remove Attribution**
-- Cannot remove or modify copyright notices in code
-- Cannot remove or modify license files
-- Must keep attribution comments in source files
-
-**? Reverse Engineer Native Plugins**
-- Cannot reverse engineer `Felina.dll`, `Felina.a`, `Felina.so` binaries
-- Cannot decompile or disassemble native code
-- Native components are proprietary and protected by trade secret law
-
-**? Machine Learning Use**
-- Cannot use code/assets for AI/ML training datasets without written permission
-
-**Real-World Examples of Violations**:
-```
-? Developer A buys license, gives copy to Developer B ? NOT ALLOWED
-? Extract HomographyUnwarp shader, sell separately on asset store ? NOT ALLOWED  
-? Create "Super AR Tracker Pro" using this codebase ? NOT ALLOWED
-? Fork on GitHub and make source public ? NOT ALLOWED
-? Use in ML training to create competing solution ? NOT ALLOWED
-```
+- [X] Redistribute, resell, or sublicense the Software source code
+- [X] Share or transfer your license to others
+- [X] Extract and redistribute individual components as standalone packages
+- [X] Use the Software to create competing asset store packages
+- [X] Remove or modify copyright notices or license files
+- [X] Reverse engineer the native plugin binaries (Felina.dll)
+- [X] Use for creating training datasets for machine learning models without permission
 
 ### Native Plugin Components
 
@@ -253,7 +194,7 @@ In case of conflict between this license and the Unity Asset Store EULA, the Uni
 ## Contact
 
 **Felina**  
-Email: support@felina.dev  
+Email: raul.nascimento.dev@gmail.com
 GitHub: https://github.com/hhthunderbird/ARColoringBook  
 Asset Store: [Your Asset Store URL]
 
