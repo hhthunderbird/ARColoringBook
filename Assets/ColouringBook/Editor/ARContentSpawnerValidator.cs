@@ -1,9 +1,9 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using UnityEngine.XR.ARFoundation;
-using UnityEngine.XR.ARSubsystems;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.XR.ARSubsystems;
 
 namespace Felina.ARColoringBook.Editor
 {
@@ -15,7 +15,6 @@ namespace Felina.ARColoringBook.Editor
         private XRReferenceImageLibrary _library;
 
         private List<ValidationResult> _validationResults = new List<ValidationResult>();
-        private bool _showValidation = true;
         private Vector2 _scrollPosition;
 
         private class ValidationResult
@@ -40,7 +39,7 @@ namespace Felina.ARColoringBook.Editor
 
             if ( _imageManager != null )
             {
-                _library = _imageManager.referenceLibrary;
+                _library = _imageManager.referenceLibrary as XRReferenceImageLibrary;
             }
 
             ValidateAll();
@@ -159,7 +158,6 @@ namespace Felina.ARColoringBook.Editor
                 return result;
             }
 
-            // --- PHYSICAL SIZE ---
             if ( refImage.specifySize )
             {
                 result.PhysicalSize = refImage.size;
@@ -172,8 +170,6 @@ namespace Felina.ARColoringBook.Editor
                 result.PhysicalAspect = result.TextureAspect;
             }
 
-            // --- PREFAB ---
-            // Note: Changed "_targetData" to "_contentLibrary" based on your file structure
             var contentLibProp = serializedObject.FindProperty( "_contentLibrary" );
             GameObject prefab = null;
 
@@ -197,7 +193,6 @@ namespace Felina.ARColoringBook.Editor
                 }
             }
 
-            // --- UV CHECK (Only checking coverage now) ---
             if ( prefab != null )
             {
                 var uvBounds = GetUVBounds( prefab );
@@ -215,7 +210,6 @@ namespace Felina.ARColoringBook.Editor
         {
             if ( prefab == null ) return null;
 
-            // Find largest mesh
             var filters = prefab.GetComponentsInChildren<MeshFilter>();
             if ( filters.Length == 0 ) return null;
 
@@ -252,8 +246,6 @@ namespace Felina.ARColoringBook.Editor
         {
             const float AspectTolerance = 0.1f;
 
-            // 1. TRACKING CHECK: Texture Aspect vs Physical Aspect
-            // If these don't match, ARFoundation will skew the tracking logic.
             float texturePhysDiff = Mathf.Abs( result.TextureAspect - result.PhysicalAspect );
             float texturePhysRatio = texturePhysDiff / result.TextureAspect;
 
@@ -266,8 +258,6 @@ namespace Felina.ARColoringBook.Editor
                 result.IsCompatible = false;
             }
 
-            // 2. RENDERING CHECK: UV Coverage
-            // For Homography, we just want to ensure the UVs mostly fill the 0-1 space.
             if ( result.UVBounds != Vector2.zero )
             {
                 if ( result.UVBounds.x < 0.9f || result.UVBounds.y < 0.9f )
@@ -276,7 +266,6 @@ namespace Felina.ARColoringBook.Editor
                 }
             }
 
-            // 3. Power of 2
             if ( !IsPowerOfTwo( ( int ) result.TextureSize.x ) || !IsPowerOfTwo( ( int ) result.TextureSize.y ) )
                 warnings.Add( "Texture not Power-of-2 (Performance warning)" );
 
@@ -295,7 +284,6 @@ namespace Felina.ARColoringBook.Editor
 
         private bool IsPowerOfTwo( int x ) => ( x != 0 ) && ( ( x & ( x - 1 ) ) == 0 );
 
-        // --- GUI DRAWING ---
         private void DisplayValidationSummary()
         {
             if ( _validationResults.Count == 0 ) return;
@@ -318,16 +306,14 @@ namespace Felina.ARColoringBook.Editor
             {
                 EditorGUILayout.BeginVertical( EditorStyles.helpBox );
 
-                // Header
                 EditorGUILayout.BeginHorizontal();
                 var c = GUI.color;
                 GUI.color = result.IsCompatible ? Color.green : Color.red;
-                GUILayout.Label( result.IsCompatible ? "✓" : "✗", EditorStyles.boldLabel, GUILayout.Width( 20 ) );
+                GUILayout.Label( result.IsCompatible ? "V" : "X", EditorStyles.boldLabel, GUILayout.Width( 20 ) );
                 GUI.color = c;
                 EditorGUILayout.LabelField( result.Name, EditorStyles.boldLabel );
                 EditorGUILayout.EndHorizontal();
 
-                // Rows
                 DrawRow( "Texture:", $"{result.TextureSize.x}x{result.TextureSize.y}", result.TextureAspect );
                 DrawRow( "Physical:", $"{result.PhysicalSize.x:F2}m x {result.PhysicalSize.y:F2}m", result.PhysicalAspect );
 
@@ -337,7 +323,6 @@ namespace Felina.ARColoringBook.Editor
                     EditorGUILayout.HelpBox( result.WarningMessage, result.MessageType );
                 }
 
-                // Quick Fix: Adjust Physical Size to match Texture Aspect
                 if ( !result.IsCompatible )
                 {
                     EditorGUILayout.Space( 3 );
@@ -362,7 +347,6 @@ namespace Felina.ARColoringBook.Editor
 
         private void AdjustPhysicalSize( ValidationResult result )
         {
-            // Set Physical Aspect to match Texture Aspect
             float targetAspect = result.TextureAspect;
             float newHeight = result.PhysicalSize.x / targetAspect;
 

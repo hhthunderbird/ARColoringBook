@@ -48,7 +48,6 @@ namespace Felina.ARColoringBook
             Debug.Log( $"=== Material Inspector: '{mat.name}' ===" );
             Debug.Log( $"Shader: {mat.shader.name}" );
 
-            // Check common texture property names
             var textureProps = new[] { "_BaseMap", "_MainTex", "_DrawingTex", "_EmissionMap", "_BumpMap" };
             
             Debug.Log( "\n--- Texture Properties ---" );

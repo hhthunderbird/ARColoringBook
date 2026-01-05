@@ -19,11 +19,10 @@ namespace Felina.ARColoringBook.Editor
 
             if ( pairsProp == null )
             {
-                Debug.LogError( $"[Felina] Could not find _prefabPairs property on {spawner.gameObject.name}" );
+                Debug.LogError( $"Could not find _prefabPairs property on {spawner.gameObject.name}" );
                 return;
             }
 
-            // Store existing prefab assignments by GUID
             Dictionary<string, Object> existingPrefabs = new Dictionary<string, Object>();
             for ( int i = 0; i < pairsProp.arraySize; i++ )
             {
@@ -37,7 +36,6 @@ namespace Felina.ARColoringBook.Editor
                 }
             }
 
-            // Rebuild the list to match library
             pairsProp.ClearArray();
 
             for ( int i = 0; i < library.count; i++ )
@@ -54,7 +52,6 @@ namespace Felina.ARColoringBook.Editor
                 if ( nameProp != null ) nameProp.stringValue = imgRef.name;
                 if ( guidProp != null ) guidProp.stringValue = imgRef.guid.ToString();
 
-                // Restore existing prefab assignment if it exists
                 if ( prefabProp != null && existingPrefabs.TryGetValue( imgRef.guid.ToString(), out var existingPrefab ) )
                 {
                     prefabProp.objectReferenceValue = existingPrefab;
@@ -191,7 +188,7 @@ namespace Felina.ARColoringBook.Editor
                 if ( imageManager != null && imageManager.referenceLibrary == library )
                 {
                     ARContentSpawnerRefreshHelper.RefreshSpawnerWithSerializedObject( spawner, imageManager, library );
-                    Debug.Log( $"[Felina] Refreshed ARContentSpawner on '{spawner.gameObject.name}' - detected library change ({library.count} images)" );
+                    Debug.Log( $"Refreshed ARContentSpawner on '{spawner.gameObject.name}' - detected library change ({library.count} images)" );
                 }
             }
         }

@@ -1,4 +1,5 @@
 ﻿using Cysharp.Threading.Tasks;
+using Felina.ARColoringBook.Base;
 using Felina.ARColoringBook.Bridges;
 using Felina.ARColoringBook.Events;
 using System;
@@ -91,7 +92,7 @@ namespace Felina.ARColoringBook
 
             if ( _referenceImages.Count > 0 )
             {
-                Debug.Log( $"[Felina] ARScannerManager: Updated with {_referenceImages.Count} reference images" );
+                Debug.Log( $"ARScannerManager: Updated with {_referenceImages.Count} reference images" );
             }
 #endif
         }

@@ -1,0 +1,51 @@
+{
+    "name": "Felina.ARColoringBook.Runtime",
+    "rootNamespace": "Felina.ARColoringBook",
+    "references": [
+        "Unity.XR.ARFoundation",
+        "Unity.XR.ARSubsystems",
+        "Unity.Mathematics",
+        "Unity.Burst",
+        "Unity.Collections",
+        "UniTask",
+        "Felina.ARColoringBook.Events",
+        "Unity.TextMeshPro",
+        "Unity.XR.CoreUtils",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.xr.arfoundation",
+            "expression": "2.0.0",
+            "define": "AR_FOUNDATION_2_OR_NEWER"
+        },
+        {
+            "name": "com.unity.xr.arfoundation",
+            "expression": "3.0.0",
+            "define": "AR_FOUNDATION_3_OR_NEWER"
+        },
+        {
+            "name": "com.unity.xr.arfoundation",
+            "expression": "4.0.0",
+            "define": "AR_FOUNDATION_4_OR_NEWER"
+        },
+        {
+            "name": "com.unity.xr.arfoundation",
+            "expression": "5.0.0",
+            "define": "AR_FOUNDATION_5_OR_NEWER"
+        },
+        {
+            "name": "com.unity.xr.arfoundation",
+            "expression": "6.0.0",
+            "define": "AR_FOUNDATION_6_OR_NEWER"
+        }
+    ],
+    "noEngineReferences": false
+}

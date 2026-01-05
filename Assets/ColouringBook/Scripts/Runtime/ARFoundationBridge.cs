@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using Felina.ARColoringBook.Base;
 using Felina.ARColoringBook.Events;
 using System;
 using System.Collections.Generic;
@@ -9,13 +10,6 @@ using UnityEngine.XR.ARSubsystems;
 
 namespace Felina.ARColoringBook.Bridges
 {
-
-    // 2. We keep the class definition so the file is valid, 
-    // but we remove the 'IARBridge' interface if dependencies are missing.
-    /// <summary>
-    /// Bridge implementation that exposes ARFoundation tracked image events and a shared camera feed as a RenderTexture.
-    /// Implements the IARBridge interface so the runtime code can be library-agnostic.
-    /// </summary>
     public class ARFoundationBridge : MonoBehaviour, IARBridge
     {
         public static ARFoundationBridge Instance;
@@ -97,7 +91,6 @@ namespace Felina.ARColoringBook.Bridges
 #if UNITY_2020_1_OR_NEWER
             OnDisplayMatrixUpdated?.Invoke( ( float4x4 ) args.displayMatrix.GetValueOrDefault());
 #else
-            // Unity 2019.4: displayMatrix is not available, use projectionMatrix instead
             OnDisplayMatrixUpdated?.Invoke( ( float4x4 ) args.projectionMatrix.GetValueOrDefault() );
 #endif
         }
@@ -106,7 +99,18 @@ namespace Felina.ARColoringBook.Bridges
 #if UNITY_2020_2_OR_NEWER
         private void OnTrackablesChanged( ARTrackablesChangedEventArgs<ARTrackedImage> args )
         {
-            TrackableProcessing(args.added, args.updated, args.removed );
+#if AR_FOUNDATION_6_OR_NEWER
+var addedList = new List<ARTrackedImage>(args.added);
+            var updatedList = new List<ARTrackedImage>(args.updated);
+            var removedList = new List<ARTrackedImage>();
+            foreach (var kvp in args.removed)
+            {
+                removedList.Add(kvp.Value);
+            }
+            TrackableProcessing(addedList, updatedList, removedList);
+#else
+TrackableProcessing(args.added, args.updated, args.removed);
+#endif
         }
 #else
         private void OnTrackedImagesChanged( ARTrackedImagesChangedEventArgs args )
@@ -117,14 +121,9 @@ namespace Felina.ARColoringBook.Bridges
 
         private void TrackableProcessing( List<ARTrackedImage> added, List<ARTrackedImage> updated, List<ARTrackedImage> removed )
         {
-            // AR Foundation 6.3.1+ FIX: args.added no longer contains referenceImage metadata
-            // We must wait for the first updated event to get the full data
-
-            // Track newly added images (without metadata yet)
             foreach ( var img in added )
                 _pendingAdds.Add( img.trackableId );
 
-            // Process updated images - this is where we get the metadata in 6.3.1+
             foreach ( var img in updated )
             {
                 if ( img.referenceImage.guid.ToString().Equals( _lastTrackingImage ) )
@@ -144,7 +143,6 @@ namespace Felina.ARColoringBook.Bridges
                     EventManager.TriggerEvent( _toggleUIEvent );
                 }
 
-                // If this was a pending add, now we have the metadata
                 if ( _pendingAdds.Contains( img.trackableId ) )
                 {
                     BroadcastTargetAdded( img );
@@ -155,15 +153,12 @@ namespace Felina.ARColoringBook.Bridges
 
         private void BroadcastTargetAdded( ARTrackedImage img )
         {
-            // FIX: AR Foundation sometimes provides empty referenceImage data
-            // Try to get the name from referenceImage first, fallback to trackableId
             string targetName = img.referenceImage.name;
 
             if ( string.IsNullOrEmpty( targetName ) )
             {
                 targetName = img.trackableId.ToString();
 
-                // Try to lookup the name from the reference library by GUID
                 if ( _aRTrackedImageManager != null && _aRTrackedImageManager.referenceLibrary != null )
                 {
                     var guid = img.referenceImage.guid;
