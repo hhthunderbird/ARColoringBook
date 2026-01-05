@@ -2,6 +2,7 @@ using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+
 namespace Felina.ARColoringBook.Events
 {
     public class UIController : MonoBehaviour
@@ -9,7 +10,6 @@ namespace Felina.ARColoringBook.Events
         private Canvas _canvas;
 
         [Header( "Visuals" )]
-        [SerializeField] private Image _targetImage;
         [SerializeField] private Image _reticleImage;
         [SerializeField] private TextMeshProUGUI _hintText;
         [SerializeField] private Button _captureButton;
@@ -32,7 +32,7 @@ namespace Felina.ARColoringBook.Events
 
         private void Start()
         {
-            _captureButton.onClick.AddListener( OnCaptureButton );
+            _captureButton.onClick.AddListener( OnCaptureButton );   
         }
 
         private void OnCaptureButton() => OnCapture?.Invoke();
@@ -66,13 +66,6 @@ namespace Felina.ARColoringBook.Events
 
         private void OnToggleUI( ToggleUIEvent args )
         {
-            if ( args.State )
-            {
-                var tx = args.Texture;
-                _targetImage.sprite = Sprite.Create( tx, new Rect( Vector2.zero, new Vector2( tx.width, tx.height ) ), Vector2.zero );
-                _targetImage.preserveAspect = true;
-            }
-
             _canvas.enabled = args.State;
         }
     }

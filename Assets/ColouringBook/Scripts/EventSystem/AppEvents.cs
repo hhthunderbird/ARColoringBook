@@ -7,12 +7,10 @@ namespace Felina.ARColoringBook.Events
     public class ToggleUIEvent : AppEvent
     {
         public bool State;
-        public Texture2D Texture;
 
-        public ToggleUIEvent( bool state, Texture2D texture )
+        public ToggleUIEvent( bool state )
         {
             State = state;
-            Texture = texture;
         }
     }
 

@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using Felina.ARColoringBook.Events;
 using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
@@ -35,6 +36,10 @@ namespace Felina.ARColoringBook.Bridges
         public event Action<ScanTarget> OnTargetAdded;
 
         public event Action<float4x4> OnDisplayMatrixUpdated;
+
+        private string _lastTrackingImage;
+
+        private ToggleUIEvent _toggleUIEvent = new ToggleUIEvent( true );
 
         private void Awake()
         {
@@ -93,7 +98,7 @@ namespace Felina.ARColoringBook.Bridges
             OnDisplayMatrixUpdated?.Invoke( ( float4x4 ) args.displayMatrix.GetValueOrDefault());
 #else
             // Unity 2019.4: displayMatrix is not available, use projectionMatrix instead
-            OnDisplayMatrixUpdated?.Invoke( ( float4x4 ) args.projectionMatrix.GetValueOrDefault());
+            OnDisplayMatrixUpdated?.Invoke( ( float4x4 ) args.projectionMatrix.GetValueOrDefault() );
 #endif
         }
 
@@ -106,7 +111,7 @@ namespace Felina.ARColoringBook.Bridges
 #else
         private void OnTrackedImagesChanged( ARTrackedImagesChangedEventArgs args )
         {
-            TrackableProcessing(args.added, args.updated, args.removed );
+            TrackableProcessing( args.added, args.updated, args.removed );
         }
 #endif
 
@@ -122,6 +127,23 @@ namespace Felina.ARColoringBook.Bridges
             // Process updated images - this is where we get the metadata in 6.3.1+
             foreach ( var img in updated )
             {
+                if ( img.referenceImage.guid.ToString().Equals( _lastTrackingImage ) )
+                {
+                    switch ( img.trackingState )
+                    {
+                        case TrackingState.None:
+                            _toggleUIEvent.State = false;
+                            break;
+                        case TrackingState.Limited:
+                            _toggleUIEvent.State = false;
+                            break;
+                        case TrackingState.Tracking:
+                            _toggleUIEvent.State = true;
+                            break;
+                    }
+                    EventManager.TriggerEvent( _toggleUIEvent );
+                }
+
                 // If this was a pending add, now we have the metadata
                 if ( _pendingAdds.Contains( img.trackableId ) )
                 {
@@ -160,6 +182,7 @@ namespace Felina.ARColoringBook.Bridges
                 }
             }
 
+            _lastTrackingImage = img.referenceImage.guid.ToString();
             var target = new ScanTarget
             {
                 Name = targetName,
@@ -167,7 +190,10 @@ namespace Felina.ARColoringBook.Bridges
                 Transform = img.transform
             };
 
+
             OnTargetAdded?.Invoke( target );
+            _toggleUIEvent.State = true;
+            EventManager.TriggerEvent( _toggleUIEvent );
         }
 
         public Camera GetARCamera()
