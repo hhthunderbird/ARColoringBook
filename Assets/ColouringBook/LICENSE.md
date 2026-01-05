@@ -5,7 +5,29 @@
 
 ---
 
-## Asset Store License Agreement
+## ?? Quick Reference
+
+**License Type**: Commercial Asset Store License
+
+### ? What You CAN Do
+- ? Use in unlimited personal and commercial projects
+- ? Modify source code for your projects
+- ? Ship in free or paid applications/games
+- ? Sell applications that include this package
+- ? Keep using after project completion
+
+### ? What You CANNOT Do
+- ? Resell or redistribute this package
+- ? Share license with team members (each needs their own)
+- ? Extract and sell individual components
+- ? Create competing asset store packages
+- ? Remove copyright notices
+
+**Need to know more?** See [Detailed Terms](#detailed-license-terms) below.
+
+---
+
+## ?? Asset Store License Agreement
 
 This software is distributed via the Unity Asset Store and is subject to both this license and the Unity Asset Store End User License Agreement (Asset Store EULA).
 
@@ -20,27 +42,87 @@ Subject to your compliance with this License and the Unity Asset Store EULA, Fel
 ### Permitted Uses
 
 #### Personal & Commercial Projects
-- ? Use in personal, educational, or commercial projects
-- ? Include in free or paid applications/games
-- ? Modify source code for your project's needs
+
+**You MAY**:
+- ? Use in personal hobby projects
+- ? Use in educational projects  
+- ? Use in commercial projects (freelance, company, startup)
+- ? Include in free applications/games
+- ? Include in paid applications/games
+- ? Modify source code to fit your project needs
 - ? Create derivative works based on the Software
+- ? Use in unlimited projects (per licensee)
+
+**Real-World Examples**:
+```
+? Indie developer creates AR coloring book app and sells it ? ALLOWED
+? Studio builds educational AR flashcard game ? ALLOWED
+? Freelancer uses it in multiple client projects ? ALLOWED
+? Company ships AR museum guide app ? ALLOWED
+? Same developer uses in 10 different games ? ALLOWED
+```
 
 #### Per-Seat Licensing
-- ? One license covers one developer/seat
-- ? Additional team members require separate licenses
-- ? Valid across unlimited projects by the licensee
+
+**How It Works**:
+- ?? **One license = One developer seat**
+- ?? **Valid for unlimited projects** by that developer
+- ?? **Team of 5 developers = 5 licenses** required
+- ?? License tied to individual, not project
+
+**Examples**:
+```
+? Buy 1 license, share with 3 team members ? NOT ALLOWED
+? Buy 3 licenses, each team member gets one ? ALLOWED
+? One developer, 10 projects using this package ? ALLOWED
+? Developer leaves, new developer needs new license ? CORRECT
+```
 
 ### Restrictions
 
-You **MAY NOT**:
+#### You **MAY NOT**:
 
-- ? Redistribute, resell, or sublicense the Software source code
-- ? Share or transfer your license to others
-- ? Extract and redistribute individual components as standalone packages
-- ? Use the Software to create competing asset store packages
-- ? Remove or modify copyright notices or license files
-- ? Reverse engineer the native plugin binaries (Felina.dll)
-- ? Use for creating training datasets for machine learning models without permission
+**? Redistribute Source Code**
+- Cannot resell this package on any marketplace
+- Cannot share with other developers (even within your company)
+- Cannot upload to public repositories with source exposed
+- Cannot create derivative asset store packages
+
+**? Share Licenses**
+- Each developer needs their own license purchase
+- Cannot use one license for multiple people
+- Cannot transfer license to another person without authorization
+
+**? Extract & Resell Components**
+- Cannot extract and redistribute individual scripts/components
+- Cannot create standalone packages from parts of this system
+- Cannot sell modified versions as separate products
+
+**? Create Competing Products**
+- Cannot use this code to create competing AR tracking packages
+- Cannot rebrand and sell as your own AR solution
+
+**? Remove Attribution**
+- Cannot remove or modify copyright notices in code
+- Cannot remove or modify license files
+- Must keep attribution comments in source files
+
+**? Reverse Engineer Native Plugins**
+- Cannot reverse engineer `Felina.dll`, `Felina.a`, `Felina.so` binaries
+- Cannot decompile or disassemble native code
+- Native components are proprietary and protected by trade secret law
+
+**? Machine Learning Use**
+- Cannot use code/assets for AI/ML training datasets without written permission
+
+**Real-World Examples of Violations**:
+```
+? Developer A buys license, gives copy to Developer B ? NOT ALLOWED
+? Extract HomographyUnwarp shader, sell separately on asset store ? NOT ALLOWED  
+? Create "Super AR Tracker Pro" using this codebase ? NOT ALLOWED
+? Fork on GitHub and make source public ? NOT ALLOWED
+? Use in ML training to create competing solution ? NOT ALLOWED
+```
 
 ### Native Plugin Components
 
@@ -106,6 +188,56 @@ Felina reserves the right to modify this license for future versions. Changes wi
 ### Governing Law
 
 This license is governed by the laws of [Your Jurisdiction], without regard to conflict of law principles.
+
+---
+
+## ? Frequently Asked License Questions
+
+### General Questions
+
+**Q: Can I use this in a commercial game I'm selling?**
+A: ? Yes! You can use it in any commercial project and sell your game/app.
+
+**Q: Do I need to credit Felina in my game?**
+A: No, attribution is not required (but appreciated!).
+
+**Q: Can I modify the source code?**
+A: ? Yes! You can modify it however you need for your projects.
+
+**Q: What if I have a team of 3 developers?**
+A: Each developer who works with the package needs their own license (3 licenses total).
+
+**Q: Can I use this in unlimited projects?**
+A: ? Yes! One license is valid for all your projects.
+
+### Technical Questions
+
+**Q: Can I include this package in my game's binary?**
+A: ? Yes, compiled/binary distribution in your games is explicitly allowed.
+
+**Q: Can I upload my project (with this package) to GitHub?**
+A: ?? You can upload your project code, but the package source should not be publicly exposed. Use private repositories or .gitignore the package.
+
+**Q: What happens if I violate the license?**
+A: License terminates, you must remove the package from all projects and delete all copies.
+
+**Q: Can I get a refund?**
+A: Refunds follow Unity Asset Store policies. Contact Unity support.
+
+### Team & Commercial Questions
+
+**Q: My client wants the source code in their repository?**
+A: ?? The client needs to purchase their own license to own the source code.
+
+**Q: Can I hire a contractor to work on my project that uses this?**
+A: ? If contractor only works with compiled code: OK
+?? If contractor needs to modify source: They need their own license
+
+**Q: What if a team member leaves?**
+A: The license stays with the individual. New team members need new licenses.
+
+**Q: Can we buy a company license for the whole team?**
+A: Contact support@felina.dev for team/enterprise licensing options.
 
 ---
 
