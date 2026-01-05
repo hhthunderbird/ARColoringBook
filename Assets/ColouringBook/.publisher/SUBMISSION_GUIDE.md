@@ -1,4 +1,4 @@
-# Unity Asset Store Submission Guide
+ï»¿# Unity Asset Store Submission Guide
 ## Felina AR Coloring Book
 
 ---
@@ -83,40 +83,40 @@ Transform your Unity projects into interactive AR coloring books with Felina AR 
 Capture real-world drawings/colorings on physical images and apply them to 3D models in AR. Perfect for educational apps, interactive books, and creative experiences.
 
 ? KEY FEATURES
-• ARFoundation Integration - Multi-platform (iOS ARKit, Android ARCore)
-• GPU-Accelerated Unwarp - High-quality texture capture with homography correction
-• Smart Auto-Capture - Quality-based thresholds with stability detection
-• Performance Optimized - Configurable resolution, zero-allocation updates
-• Complete Workflow - Scanner, spawner, and material integration components
-• Native Performance - C++ plugin for critical operations
+* ARFoundation Integration - Multi-platform (iOS ARKit, Android ARCore)
+* GPU-Accelerated Unwarp - High-quality texture capture with homography correction
+* Smart Auto-Capture - Quality-based thresholds with stability detection
+* Performance Optimized - Configurable resolution, zero-allocation updates
+* Complete Workflow - Scanner, spawner, and material integration components
+* Native Performance - C++ plugin for critical operations
 
 ?? PERFECT FOR
-• Educational coloring book apps
-• Interactive marketing experiences
-• Art & creativity applications
-• Museum exhibitions
-• Children's entertainment
+* Educational coloring book apps
+* Interactive marketing experiences
+* Art & creativity applications
+* Museum exhibitions
+* Children's entertainment
 
 ?? TECHNICAL HIGHLIGHTS
-• Event-driven architecture
-• MaterialPropertyBlock updates (no material instances)
-• NativeArray for efficient memory
-• Smart RenderTexture format detection
-• Extensible IARBridge interface
-• Custom editor inspectors
+* Event-driven architecture
+* MaterialPropertyBlock updates (no material instances)
+* NativeArray for efficient memory
+* Smart RenderTexture format detection
+* Extensible IARBridge interface
+* Custom editor inspectors
 
 ?? INCLUDES
-• Complete C# source code
-• Native plugins (Win/Mac/iOS/Android)
-• Sample scene with setup guide
-• Comprehensive documentation
-• Email support
+* Complete C# source code
+* Native plugins (Win/Mac/iOS/Android)
+* Sample scene with setup guide
+* Comprehensive documentation
+* Email support
 
 ?? REQUIREMENTS
-• Unity 2022.3+
-• AR Foundation 5.0+
-• ARKit/ARCore XR Plugins
-• Unity Mathematics
+* Unity 2022.3+
+* AR Foundation 5.0+
+* ARKit/ARCore XR Plugins
+* Unity Mathematics
 
 ?? DOCUMENTATION
 Complete API reference, quick start guide, troubleshooting, and video tutorials included.
@@ -136,16 +136,16 @@ Email support with 24-48h response time. GitHub issue tracker and wiki documenta
 
 **Key Features** (bullet points):
 ```
-• ARFoundation-based image tracking with quality detection
-• GPU-accelerated homography texture unwarp
-• Smart auto-capture with configurable thresholds
-• Device stability detection for optimal timing
-• Zero-allocation MaterialPropertyBlock updates
-• Performance-optimized for mobile devices
-• Custom editor inspectors and workflow tools
-• Native C++ plugin for performance-critical operations
-• Extensible IARBridge interface
-• Complete source code included
+* ARFoundation-based image tracking with quality detection
+* GPU-accelerated homography texture unwarp
+* Smart auto-capture with configurable thresholds
+* Device stability detection for optimal timing
+* Zero-allocation MaterialPropertyBlock updates
+* Performance-optimized for mobile devices
+* Custom editor inspectors and workflow tools
+* Native C++ plugin for performance-critical operations
+* Extensible IARBridge interface
+* Complete source code included
 ```
 
 **Technical Details**:

@@ -309,7 +309,7 @@ namespace Felina.ARColoringBook.Editor
                 EditorGUILayout.BeginHorizontal();
                 var c = GUI.color;
                 GUI.color = result.IsCompatible ? Color.green : Color.red;
-                GUILayout.Label( result.IsCompatible ? "V" : "X", EditorStyles.boldLabel, GUILayout.Width( 20 ) );
+                GUILayout.Label( result.IsCompatible ? "[Incompatible]" : "[Compatible]", EditorStyles.boldLabel, GUILayout.Width( 20 ) );
                 GUI.color = c;
                 EditorGUILayout.LabelField( result.Name, EditorStyles.boldLabel );
                 EditorGUILayout.EndHorizontal();

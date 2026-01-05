@@ -33,7 +33,7 @@
 
 # Visual Studio cache directory
 .vs/
-.vshistory/
+**/.vshistory/
 
 # Gradle cache directory
 .gradle/
