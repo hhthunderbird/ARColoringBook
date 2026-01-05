@@ -17,8 +17,8 @@ namespace Felina.ARColoringBook
     [Serializable]
     public struct ReferencePair
     {
-        public string referenceName; 
-        public Texture2D originalTexture;
+        public string ReferenceName;
+        public Texture2D OriginalTexture;
     }
 
     public class ARScannerManager : MonoBehaviour
@@ -35,8 +35,67 @@ namespace Felina.ARColoringBook
 
         [Header( "Ground Truth Assets" )]
         [SerializeField]
-        private List<ReferencePair> _referenceImages = new();
-        private readonly Dictionary<string, Texture2D> _refLookup = new();
+        private List<ReferencePair> _referenceImages = new List<ReferencePair>();
+        private readonly Dictionary<string, Texture2D> _refLookup = new Dictionary<string, Texture2D>();
+
+
+        private void OnValidate()
+        {
+#if UNITY_EDITOR
+            if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
+                return;
+            
+            var imageManager = FindObjectOfType<UnityEngine.XR.ARFoundation.ARTrackedImageManager>();
+            if ( imageManager == null || imageManager.referenceLibrary == null )
+            {
+                return;
+            }
+
+            try
+            {
+                if ( imageManager.referenceLibrary.count == 0 )
+                    return; 
+            }
+            catch
+            {
+                return;
+            }
+
+            var existingTextures = new Dictionary<string, Texture2D>();
+            foreach ( var pair in _referenceImages )
+            {
+                if ( !string.IsNullOrEmpty( pair.ReferenceName ) )
+                {
+                    existingTextures[ pair.ReferenceName ] = pair.OriginalTexture;
+                }
+            }
+
+            _referenceImages.Clear();
+
+            for ( int i = 0; i < imageManager.referenceLibrary.count; i++ )
+            {
+                var imgRef = imageManager.referenceLibrary[ i ];
+                var pair = new ReferencePair
+                {
+                    ReferenceName = imgRef.name,
+                    OriginalTexture = null
+                };
+
+                if ( existingTextures.TryGetValue( imgRef.name, out var existingTex ) )
+                {
+                    pair.OriginalTexture = existingTex;
+                }
+
+                _referenceImages.Add( pair );
+            }
+
+            if ( _referenceImages.Count > 0 )
+            {
+                Debug.Log( $"[Felina] ARScannerManager: Updated with {_referenceImages.Count} reference images" );
+            }
+#endif
+        }
+
 
         [SerializeField] private Material _unwarpMaterial;
 
@@ -54,7 +113,7 @@ namespace Felina.ARColoringBook
         public event Action OnTextureCaptured;
 
         private CancellationTokenSource _cancellationToken;
-        private ScanFeedbackEvent _feedbackEvent = new();
+        private ScanFeedbackEvent _feedbackEvent = new ScanFeedbackEvent();
 
         private void Awake()
         {
@@ -66,15 +125,20 @@ namespace Felina.ARColoringBook
         {
             foreach ( var pair in _referenceImages )
             {
-                if ( !string.IsNullOrEmpty( pair.referenceName ) )
-                    _refLookup[ pair.referenceName ] = pair.originalTexture;
+                if ( !string.IsNullOrEmpty( pair.ReferenceName ) )
+                    _refLookup[ pair.ReferenceName ] = pair.OriginalTexture;
             }
             StartTask().Forget();
         }
 
         private async UniTaskVoid StartTask()
         {
+#if UNITY_2023_1_OR_NEWER
             var ui = FindFirstObjectByType<UIController>();
+#else
+            var ui = FindObjectOfType<UIController>();
+#endif
+
             if ( ui )
                 ui.OnCapture += ProcessRT;
 
@@ -123,30 +187,54 @@ namespace Felina.ARColoringBook
             var hy = size.y * 0.5f;
             var t = _target.Transform;
 
-            // Cache transform using Unity.Mathematics types for better performance
             var tPos = ( float3 ) t.position;
             var tRight = ( float3 ) t.right;
             var tForward = ( float3 ) t.forward;
 
-            // Calculate corner positions using Unity.Mathematics
             var halfExtentX = tRight * hx;
             var halfExtentZ = tForward * hy;
 
-            _nativeScreenPoints[ 0 ] = ToScreen( tPos - halfExtentX - halfExtentZ );
-            _nativeScreenPoints[ 1 ] = ToScreen( tPos + halfExtentX - halfExtentZ );
-            _nativeScreenPoints[ 2 ] = ToScreen( tPos + halfExtentX + halfExtentZ );
-            _nativeScreenPoints[ 3 ] = ToScreen( tPos - halfExtentX + halfExtentZ );
+            var bottomLeft = tPos - halfExtentX - halfExtentZ;
+            var bottomRight = tPos + halfExtentX - halfExtentZ;
+            var topRight = tPos + halfExtentX + halfExtentZ;
+            var topLeft = tPos - halfExtentX + halfExtentZ;
 
+            _nativeScreenPoints[ 0 ] = ToScreen( bottomLeft );  
+            _nativeScreenPoints[ 1 ] = ToScreen( bottomRight ); 
+            _nativeScreenPoints[ 2 ] = ToScreen( topRight );    
+            _nativeScreenPoints[ 3 ] = ToScreen( topLeft );     
+
+
+#if UNITY_2021_2_OR_NEWER
             var resolution = Screen.currentResolution;
+#else
+            var resolution = new Resolution
+            {
+                width = _arCamera.pixelWidth,
+                height = _arCamera.pixelHeight
+            };
+#endif
 
             ComputeTransformMatrix( resolution.width, resolution.height, _nativeScreenPoints.GetUnsafePtr(), _nativeResultMatrix.GetUnsafePtr() );
 
             var H = _nativeResultMatrix[ 0 ];
 
             var cameraSource = ARFoundationBridge.Instance.MasterCameraFeed;
+
+            // Ensure we have a valid texture
+            if ( cameraSource == null || !cameraSource.IsCreated() )
+            {
+                Debug.LogWarning( "[ARScannerManager] Camera feed not ready" );
+                return;
+            }
+
             var tempRT = RenderTexture.GetTemporary( cameraSource.width, cameraSource.height, 0, cameraSource.format );
 
-            if ( _target.Name == null ) return;
+            if ( _target.Name == null )
+            {
+                RenderTexture.ReleaseTemporary( tempRT );
+                return;
+            }
 
             _refLookup.TryGetValue( _target.Name, out var groundTruth );
 
@@ -158,11 +246,14 @@ namespace Felina.ARColoringBook
             _unwarpMaterial.SetTexture( _mainTexPropertyID, cameraSource );
             _unwarpMaterial.SetMatrix( _unwarpPropertyID, H );
 
+            // Apply display matrix for correct orientation
             var matrixToUse = _currentCameraMatrix.GetValueOrDefault( Matrix4x4.identity );
             _unwarpMaterial.SetMatrix( _displayMatrixPropertyID, matrixToUse );
 
+            // Unwarp the camera feed using the calculated homography
             Graphics.Blit( cameraSource, tempRT, _unwarpMaterial );
 
+            // Copy back to the master camera feed
             Graphics.Blit( tempRT, cameraSource );
 
             RenderTexture.ReleaseTemporary( tempRT );
@@ -179,34 +270,31 @@ namespace Felina.ARColoringBook
         private void OnTargetAdded( ScanTarget incomingTarget )
         {
             _target = incomingTarget;
-            _refLookup.TryGetValue( _target.Name, out var tx );
-            EventManager.TriggerEvent( new ToggleUIEvent( true, tx ) );
             _cancellationToken = new CancellationTokenSource();
             UIFeedback( _cancellationToken.Token ).Forget();
         }
 
         private async UniTaskVoid UIFeedback( CancellationToken token )
         {
-            //while ( !token.IsCancellationRequested )
-            //{
-            //    _feedbackEvent.Set( CalculateNativeStability(), GetNativeQuality() / Settings.Instance.CAPTURE_THRESHOLD );
-
-            //    EventManager.TriggerEvent( _feedbackEvent );
-
-            //    await UniTask.Delay( 100, cancellationToken: token );
-            //}
-
             while ( !token.IsCancellationRequested )
             {
-                // 1. Prepare Data
-                _arCamera.transform.GetPositionAndRotation( out var camPos, out var camRot );
+#if UNITY_2023_1_OR_NEWER
+                _arCamera.transform.GetPositionAndRotation(out var camPos, out var camRot);
+#else
+                var camPos = ( float3 ) _arCamera.transform.position;
+                var camRot = ( quaternion ) _arCamera.transform.rotation;
+#endif
                 var sPos3 = _arCamera.WorldToScreenPoint( _target.Transform.position );
                 var sPos = ( sPos3.z > 0 ) ? new float2( sPos3.x, sPos3.y ) : new float2( -1, -1 );
                 var settings = Settings.Instance;
 
-                // 2. Create Containers for Results (Allocator.TempJob is fast/transient)
-                NativeReference<bool> outStable = new NativeReference<bool>( Allocator.TempJob );
-                NativeReference<float> outQuality = new NativeReference<float>( Allocator.TempJob );
+#if UNITY_2021_2_OR_NEWER
+                NativeReference<bool> outStable = new NativeReference<bool>(Allocator.TempJob);
+                NativeReference<float> outQuality = new NativeReference<float>(Allocator.TempJob);
+#else
+                NativeArray<bool> outStable = new NativeArray<bool>( 1, Allocator.TempJob );
+                NativeArray<float> outQuality = new NativeArray<float>( 1, Allocator.TempJob );
+#endif
 
                 var maxMoveSpd = settings.MAX_MOVE_SPEED;
                 var maxRotSpd = settings.MAX_ROTATE_SPEED;
@@ -216,11 +304,8 @@ namespace Felina.ARColoringBook
                 var weightAngle = settings.WEIGHT_ANGLE;
                 var weightCenter = settings.WEIGHT_CENTER;
 
-
-                // 3. Create the Job
                 var job = new ScannerJob
                 {
-                    // Dynamic Data
                     curPos = camPos,
                     curRot = camRot,
                     lastPos = _lastCamPos,
@@ -233,7 +318,6 @@ namespace Felina.ARColoringBook
                     screenW = Screen.width,
                     screenH = Screen.height,
 
-                    // Settings Data
                     maxMoveSpd = maxMoveSpd,
                     maxRotSpd = maxRotSpd,
                     minScanDist = minScanDist,
@@ -242,29 +326,26 @@ namespace Felina.ARColoringBook
                     weightAngle = weightAngle,
                     weightCenter = weightCenter,
 
-                    // Outputs
                     resultStability = outStable,
                     resultQuality = outQuality
                 };
 
-                // 4. Schedule & Complete
-                // For a single item, immediate completion is fine and still gets Burst speedup.
-                JobHandle handle = job.Schedule();
-                handle.Complete(); // Force it to finish NOW so we can read results
+                var handle = job.Schedule();
+                handle.Complete();
 
-                // 5. Read Results
+#if UNITY_2021_2_OR_NEWER
                 bool isStable = outStable.Value;
                 float quality = outQuality.Value;
-
-                // 6. Update State
+#else
+                bool isStable = outStable[ 0 ];
+                float quality = outQuality[ 0 ];
+#endif
                 _lastCamPos = camPos;
                 _lastCamRot = camRot;
 
-                // 7. Clean up Memory
                 outStable.Dispose();
                 outQuality.Dispose();
 
-                // 8. Fire Event
                 _feedbackEvent.Set( isStable, quality / settings.CAPTURE_THRESHOLD );
                 EventManager.TriggerEvent( _feedbackEvent );
 
@@ -278,6 +359,8 @@ namespace Felina.ARColoringBook
             await UniTask.WaitForEndOfFrame();
             ProcessCaptureGPU();
         }
+
+
 
         [BurstCompile]
         public struct ScannerJob : IJob
@@ -306,8 +389,14 @@ namespace Felina.ARColoringBook
             [ReadOnly] public float weightCenter;
 
             // Outputs
+#if UNITY_2021_2_OR_NEWER
             [WriteOnly] public NativeReference<bool> resultStability;
             [WriteOnly] public NativeReference<float> resultQuality;
+#else
+            [WriteOnly] public NativeArray<bool> resultStability;
+            [WriteOnly] public NativeArray<float> resultQuality;
+#endif
+
 
             public void Execute()
             {
@@ -332,15 +421,17 @@ namespace Felina.ARColoringBook
                     if ( absDot < minCos ) isStable = false;
                 }
 
+#if UNITY_2021_2_OR_NEWER
                 resultStability.Value = isStable;
+#else
+                resultStability[ 0 ] = isStable;
+#endif
 
                 if ( isStable )
                 {
-                    // Angle Score
                     float3 negFwd = -camFwd;
                     float angleScore = math.saturate( math.dot( imgUp, negFwd ) );
 
-                    // Center Score
                     float centerScore = 0.0f;
                     if ( imgScreenPos.x >= 0 && imgScreenPos.y >= 0 )
                     {
@@ -351,22 +442,29 @@ namespace Felina.ARColoringBook
                         centerScore = math.saturate( 1.0f - ( sqrDistCenter / sqrMaxDist ) );
                     }
 
-                    // Distance Score
                     var sqrDistCam = math.distancesq( curPos, imgPos );
                     var distScore = 1.0f;
                     var minSq = minScanDist * minScanDist;
                     var maxSq = maxScanDist * maxScanDist;
 
                     if ( sqrDistCam < minSq || sqrDistCam > maxSq )
-                    {
                         distScore = distPenalty;
-                    }
+                    
+                    var quality = ( angleScore * weightAngle ) + ( centerScore * weightCenter * distScore );
 
-                    resultQuality.Value = ( angleScore * weightAngle ) + ( centerScore * weightCenter * distScore );
+#if UNITY_2021_2_OR_NEWER
+                    resultQuality.Value = quality;
+#else
+                    resultQuality[ 0 ] = quality;
+#endif
                 }
                 else
                 {
+#if UNITY_2021_2_OR_NEWER
                     resultQuality.Value = 0.0f;
+#else
+                    resultQuality[ 0 ] = 0.0f;
+#endif
                 }
             }
         }
