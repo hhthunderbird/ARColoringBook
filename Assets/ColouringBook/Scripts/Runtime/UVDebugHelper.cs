@@ -72,7 +72,6 @@ namespace Felina.ARColoringBook
         {
             Texture2D uvTexture = new Texture2D( _textureSize, _textureSize, TextureFormat.RGB24, false );
             
-            // Create a grid pattern
             for ( int y = 0; y < _textureSize; y++ )
             {
                 for ( int x = 0; x < _textureSize; x++ )

@@ -52,8 +52,7 @@ namespace Felina.ARColoringBook
         private void OnValidate()
         {
 #if UNITY_EDITOR
-            // Don't run during build process or play mode
-            if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
+if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
             {
                 return;
             }
@@ -62,27 +61,23 @@ namespace Felina.ARColoringBook
             {
                 libraryManager.trackedImagePrefab = null;
 
-                // Check if reference library exists
                 if ( libraryManager.referenceLibrary == null )
                 {
-                    return; // Silently return during asset import/build
+                    return;
                 }
 
-                // Additional safety check for count access
                 try
                 {
                     if ( libraryManager.referenceLibrary.count == 0 )
                     {
-                        return; // Silently return if empty
+                        return;
                     }
                 }
                 catch
                 {
-                    // Library not ready yet, skip
                     return;
                 }
 
-                // Store existing data to preserve user assignments
                 var existingData = new Dictionary<string, TargetData>();
                 foreach ( var data in _targetData )
                 {
@@ -104,7 +99,6 @@ namespace Felina.ARColoringBook
                         imageGuid = imgRef.guid.ToString()
                     };
 
-                    // Restore existing assignments if available
                     if ( existingData.TryGetValue( item.imageGuid, out var existing ) )
                     {
                         item.prefab = existing.prefab;
@@ -115,7 +109,7 @@ namespace Felina.ARColoringBook
                     _targetData.Add( item );
                 }
 
-                Debug.Log( $"[Felina] ARContentSpawner: Updated with {_targetData.Count} reference images" );
+                Debug.Log( $"ARContentSpawner: Updated with {_targetData.Count} reference images" );
             }
 #endif
         }
@@ -125,7 +119,6 @@ namespace Felina.ARColoringBook
         {
             ARScannerManager.Instance.OnTextureCaptured += UpdateModel;
 
-            // Ensure _targetData is populated from reference library at runtime
             if ( _targetData.Count == 0 )
             {
                 InitializeTargetData();
@@ -137,7 +130,7 @@ namespace Felina.ARColoringBook
             }
 
             // Debug log to verify initialization
-            Debug.Log( $"[Felina] ARContentSpawner initialized with {_targetDataDictionary.Count} targets" );
+            Debug.Log( $"ARContentSpawner initialized with {_targetDataDictionary.Count} targets" );
         }
 
         private void InitializeTargetData()
@@ -146,11 +139,11 @@ namespace Felina.ARColoringBook
             {
                 if ( libraryManager.referenceLibrary == null )
                 {
-                    Debug.LogError( "[Felina] ARContentSpawner: ARTrackedImageManager.referenceLibrary is NULL! Please assign an image library." );
+                    Debug.LogError( "ARContentSpawner: ARTrackedImageManager.referenceLibrary is NULL! Please assign an image library." );
                     return;
                 }
 
-                Debug.Log( $"[Felina] ARContentSpawner: Initializing from reference library with {libraryManager.referenceLibrary.count} images" );
+                Debug.Log( $"ARContentSpawner: Initializing from reference library with {libraryManager.referenceLibrary.count} images" );
 
                 _targetData.Clear();
                 for ( int i = 0; i < libraryManager.referenceLibrary.count; i++ )
@@ -168,7 +161,7 @@ namespace Felina.ARColoringBook
             }
             else
             {
-                Debug.LogError( "[Felina] ARContentSpawner: ARTrackedImageManager component not found!" );
+                Debug.LogError( "ARContentSpawner: ARTrackedImageManager component not found!" );
             }
         }
 
@@ -176,13 +169,13 @@ namespace Felina.ARColoringBook
         {
             if ( string.IsNullOrEmpty( _lastObjectId ) )
             {
-                Debug.LogWarning( "[Felina] ARContentSpawner.UpdateModel: _lastObjectId is null or empty" );
+                Debug.LogWarning( "ARContentSpawner.UpdateModel: _lastObjectId is null or empty" );
                 return;
             }
 
             if ( !_targetDataDictionary.TryGetValue( _lastObjectId, out var target ) )
             {
-                Debug.LogWarning( $"[Felina] ARContentSpawner.UpdateModel: Image GUID {_lastObjectId} not found in dictionary" );
+                Debug.LogWarning( $"ARContentSpawner.UpdateModel: Image GUID {_lastObjectId} not found in dictionary" );
                 return;
             }
 
@@ -242,28 +235,35 @@ namespace Felina.ARColoringBook
 #if UNITY_2020_2_OR_NEWER
         private void OnTrackablesChanged( ARTrackablesChangedEventArgs<ARTrackedImage> eventArgs )
         {
-            TrackableProcessing(eventArgs.added, eventArgs.updated, eventArgs.removed);
+#if AR_FOUNDATION_6_OR_NEWER
+var addedList = new List<ARTrackedImage>(eventArgs.added);
+            var updatedList = new List<ARTrackedImage>(eventArgs.updated);
+            var removedList = new List<ARTrackedImage>();
+            foreach (var kvp in eventArgs.removed)
+            {
+                removedList.Add(kvp.Value);
+            }
+            TrackableProcessing(addedList, updatedList, removedList);
+#else
+TrackableProcessing(eventArgs.added, eventArgs.updated, eventArgs.removed);
+#endif
         }
 #else
         private void OnTrackedImagesChanged( ARTrackedImagesChangedEventArgs args )
         {
-            TrackableProcessing( args.added, args.updated, args.removed );
+            TrackableProcessing(args.added, args.updated, args.removed);
         }
 #endif
 
         private void TrackableProcessing( List<ARTrackedImage> added, List<ARTrackedImage> updated, List<ARTrackedImage> removed )
         {
-            // AR Foundation 6.3.1+ FIX: args.added no longer contains referenceImage metadata
-            // We must wait for the first updated event to get the full data
             foreach ( var trackedImage in added )
             {
                 _pendingAdds.Add( trackedImage.trackableId );
             }
 
-            // Process updated images - spawn prefabs when we have metadata
             foreach ( var trackedImage in updated )
             {
-                // Only spawn for newly tracked images
                 if ( _pendingAdds.Contains( trackedImage.trackableId ) )
                 {
                     SpawnPrefabForImage( trackedImage );
@@ -288,7 +288,6 @@ namespace Felina.ARColoringBook
 
             if ( _instantiated.ContainsKey( _lastObjectId ) ) return;
 
-            // Find prefab for this image
             if ( _targetDataDictionary.TryGetValue( _lastObjectId, out var target ) && target.prefab != null )
             {
                 var instance = Instantiate( target.prefab, trackedImage.transform );
@@ -307,7 +306,7 @@ namespace Felina.ARColoringBook
             }
             else
             {
-                Debug.LogWarning( $"[Felina] ARContentSpawner: No prefab assigned for image (GUID: {_lastObjectId})" );
+                Debug.LogWarning( $"ARContentSpawner: No prefab assigned for image (GUID: {_lastObjectId})" );
             }
         }
     }
