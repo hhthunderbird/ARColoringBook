@@ -1,7 +1,7 @@
-# Felina AR Coloring Book License
+ï»¿# Felina AR Coloring Book License
 
 **Version 1.0.0**  
-**Copyright © 2024 Felina. All rights reserved.**
+**Copyright (c) 2024 Felina. All rights reserved.**
 
 ---
 
