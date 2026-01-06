@@ -245,16 +245,15 @@ namespace Felina.ARColoringBook
                 _unwarpMaterial.SetTexture( _refTexID, Texture2D.whiteTexture );
 
             _unwarpMaterial.SetTexture( _mainTexPropertyID, cameraSource );
+            
             _unwarpMaterial.SetMatrix( _unwarpPropertyID, H );
 
-            // Apply display matrix for correct orientation
             var matrixToUse = _currentCameraMatrix.GetValueOrDefault( Matrix4x4.identity );
+
             _unwarpMaterial.SetMatrix( _displayMatrixPropertyID, matrixToUse );
 
-            // Unwarp the camera feed using the calculated homography
             Graphics.Blit( cameraSource, tempRT, _unwarpMaterial );
 
-            // Copy back to the master camera feed
             Graphics.Blit( tempRT, cameraSource );
 
             RenderTexture.ReleaseTemporary( tempRT );
@@ -290,8 +289,8 @@ namespace Felina.ARColoringBook
                 var settings = Settings.Instance;
 
 #if UNITY_2021_2_OR_NEWER
-                NativeReference<bool> outStable = new NativeReference<bool>(Allocator.TempJob);
-                NativeReference<float> outQuality = new NativeReference<float>(Allocator.TempJob);
+                NativeReference<bool> outStable = new NativeReference<bool>( Allocator.TempJob );
+                NativeReference<float> outQuality = new NativeReference<float>( Allocator.TempJob );
 #else
                 NativeArray<bool> outStable = new NativeArray<bool>( 1, Allocator.TempJob );
                 NativeArray<float> outQuality = new NativeArray<float>( 1, Allocator.TempJob );

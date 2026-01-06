@@ -14,24 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_GuidLow: 5113786545531989178
   m_GuidHigh: 12122990043506290094
+  m_DataStore:
+    m_Storage: []
   m_Images:
   - m_SerializedGuid:
-      m_GuidLow: 5261690013737834519
-      m_GuidHigh: 5150069386865739396
-    m_SerializedTextureGuid:
-      m_GuidLow: 2870119461167717032
-      m_GuidHigh: 13979147928196617867
-    m_Size: {x: 0.15, y: 0.15}
-    m_SpecifySize: 1
-    m_Name: astronaut-outline
-    m_Texture: {fileID: 0}
-  - m_SerializedGuid:
-      m_GuidLow: 5552418283888629721
-      m_GuidHigh: 3803278992174124944
+      m_GuidLow: 5389366274089498580
+      m_GuidHigh: 18107676466533373886
     m_SerializedTextureGuid:
       m_GuidLow: 9328136186484728913
       m_GuidHigh: 16132841790115648907
     m_Size: {x: 0.15, y: 0.15}
     m_SpecifySize: 1
     m_Name: delivery-outline
-    m_Texture: {fileID: 0}
+    m_Texture: {fileID: 2800000, guid: 63e3a451327081748b956bf5215ee3df, type: 3}
