@@ -12,6 +12,7 @@ namespace Felina.ARColoringBook
     {
         public string name;
         public string imageGuid;
+        [HideInInspector]
         public Renderer renderer;
         public GameObject prefab;
         public Texture2D blankMarker;
