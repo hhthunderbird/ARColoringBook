@@ -52,7 +52,7 @@ namespace Felina.ARColoringBook.Editor
 
         // --- INITIALIZATION ---
 
-        [MenuItem( "Felina/Project Setup Wizard" )]
+        [MenuItem( "Setup Project/Setup Wizard" )]
         public static void ShowWindow()
         {
             var win = GetWindow<ARProjectSetupWizard>( "AR Setup" );
