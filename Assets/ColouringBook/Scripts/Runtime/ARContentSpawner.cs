@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 
-namespace Felina.ARColoringBook
+namespace Felina.ARColoringBook.Runtime
 {
     [Serializable]
     public struct TargetData

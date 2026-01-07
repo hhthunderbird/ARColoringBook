@@ -4,6 +4,7 @@ using UnityEngine.XR.ARFoundation;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.XR.ARSubsystems;
+using Felina.ARColoringBook.Runtime;
 
 namespace Felina.ARColoringBook.Editor
 {
