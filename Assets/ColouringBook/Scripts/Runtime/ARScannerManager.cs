@@ -146,7 +146,9 @@ namespace Felina.ARColoringBook.Runtime
             await UniTask.WaitUntil( () => ARFoundationBridge.Instance != null );
 
             ARFoundationBridge.Instance.OnTargetAdded += OnTargetAdded;
-            ARFoundationBridge.Instance.OnDisplayMatrixUpdated -= OnDisplayMatrixUpdated;
+            ARFoundationBridge.Instance.OnDisplayMatrixUpdated += OnDisplayMatrixUpdated;
+
+            EventManager.Subscribe<ToggleUIEvent>( OnToggleUIEvent );
 
             _arCamera = ARFoundationBridge.Instance.GetARCamera();
 
@@ -160,6 +162,9 @@ namespace Felina.ARColoringBook.Runtime
             _nativeResultMatrix = new NativeArray<float4x4>( 1, Allocator.Persistent );
         }
 
+        private void OnToggleUIEvent( ToggleUIEvent args ) { if ( !args.State ) _cancellationToken?.Cancel(); }
+        
+
         void OnDestroy()
         {
             if ( _nativeScreenPoints.IsCreated ) _nativeScreenPoints.Dispose();
@@ -171,8 +176,11 @@ namespace Felina.ARColoringBook.Runtime
         void OnEnable() => Start();
         void OnDisable()
         {
-            ARFoundationBridge.Instance.OnDisplayMatrixUpdated -= OnDisplayMatrixUpdated;
-            ARFoundationBridge.Instance.OnTargetAdded -= OnTargetAdded;
+            if ( ARFoundationBridge.Instance != null )
+            {
+                ARFoundationBridge.Instance.OnDisplayMatrixUpdated -= OnDisplayMatrixUpdated;
+                ARFoundationBridge.Instance.OnTargetAdded -= OnTargetAdded;
+            }
         }
 
         private void OnDisplayMatrixUpdated( float4x4 m ) => _currentCameraMatrix = m;
@@ -355,7 +363,7 @@ namespace Felina.ARColoringBook.Runtime
 
         private async void ProcessRT()
         {
-            _cancellationToken?.Cancel();
+            //_cancellationToken?.Cancel();
             await UniTask.WaitForEndOfFrame();
             ProcessCaptureGPU();
         }
