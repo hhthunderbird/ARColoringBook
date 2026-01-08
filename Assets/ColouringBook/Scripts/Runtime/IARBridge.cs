@@ -26,7 +26,6 @@ namespace Felina.ARColoringBook.Base
     public interface IARBridge
     {
         event Action<ScanTarget> OnTargetAdded;
-        event Action<float4x4> OnDisplayMatrixUpdated;
 
         void SetTargetRenderTexture( RenderTexture targetRT );
         void UpdateCameraRT();
