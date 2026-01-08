@@ -29,8 +29,6 @@ namespace Felina.ARColoringBook.Bridges
 
         public event Action<ScanTarget> OnTargetAdded;
 
-        public event Action<float4x4> OnDisplayMatrixUpdated;
-
         private string _lastTrackingImage;
 
         private ToggleUIEvent _toggleUIEvent = new ToggleUIEvent( true );
@@ -45,6 +43,11 @@ namespace Felina.ARColoringBook.Bridges
 
         private async UniTaskVoid InitializeSharedRT()
         {
+#if UNITY_2020_2_OR_NEWER
+            if ( _aRTrackedImageManager ) _aRTrackedImageManager.trackablesChanged.AddListener( OnTrackablesChanged );
+#else
+            if ( _aRTrackedImageManager ) _aRTrackedImageManager.trackedImagesChanged += OnTrackedImagesChanged;
+#endif
             await UniTask.WaitUntil( () => Settings.Instance.IsInitialized );
 
             if ( MasterCameraFeed != null ) return;
@@ -61,16 +64,7 @@ namespace Felina.ARColoringBook.Bridges
             MasterCameraFeed.Create();
         }
 
-        private void OnEnable()
-        {
-#if UNITY_2020_2_OR_NEWER
-            if ( _aRTrackedImageManager ) _aRTrackedImageManager.trackablesChanged.AddListener( OnTrackablesChanged );
-#else
-            if ( _aRTrackedImageManager ) _aRTrackedImageManager.trackedImagesChanged += OnTrackedImagesChanged;
-#endif
-            if ( _cameraManager ) _cameraManager.frameReceived += OnFrameReceived;
-        }
-
+        private void OnEnable() => Start();
 
         private void OnDisable()
         {
@@ -79,21 +73,11 @@ namespace Felina.ARColoringBook.Bridges
 #else
             if ( _aRTrackedImageManager ) _aRTrackedImageManager.trackedImagesChanged -= OnTrackedImagesChanged;
 #endif
-            if ( _cameraManager ) _cameraManager.frameReceived -= OnFrameReceived;
             OnDestroy();
         }
 
 
         private void OnDestroy() => MasterCameraFeed?.Release();
-
-        private void OnFrameReceived( ARCameraFrameEventArgs args )
-        {
-#if UNITY_2020_1_OR_NEWER
-            OnDisplayMatrixUpdated?.Invoke( ( float4x4 ) args.displayMatrix.GetValueOrDefault());
-#else
-            OnDisplayMatrixUpdated?.Invoke( ( float4x4 ) args.projectionMatrix.GetValueOrDefault() );
-#endif
-        }
 
 
 #if UNITY_2020_2_OR_NEWER
@@ -215,13 +199,35 @@ TrackableProcessing(args.added, args.updated, args.removed);
         {
             if ( MasterCameraFeed == null )
             {
-                InitializeSharedRT();
+                InitializeSharedRT().Forget();
+            }
+
+
+            float screenAspect = ( float ) Screen.width / Screen.height;
+            float rtAspect = ( float ) MasterCameraFeed.width / MasterCameraFeed.height;
+
+            // If the difference is significant (e.g., one is >1 and other is <1), we flipped orientation
+            if ( Mathf.Abs( screenAspect - rtAspect ) > 0.5f )
+            {
+                Debug.Log( $"[ARFoundationBridge] Screen rotation detected. Resizing RT from {MasterCameraFeed.width}x{MasterCameraFeed.height} to match screen aspect." );
+
+                // Swap width and height of the RenderTexture
+                int newWidth = MasterCameraFeed.height;
+                int newHeight = MasterCameraFeed.width;
+
+                MasterCameraFeed.Release();
+                MasterCameraFeed.width = newWidth;
+                MasterCameraFeed.height = newHeight;
+                MasterCameraFeed.Create();
             }
 
             if ( _arCameraBackground == null || _arCameraBackground.material == null ) return;
 
             if ( MasterCameraFeed != null )
-                Graphics.Blit( null, MasterCameraFeed, _arCameraBackground.material );
+            {
+                if ( _arCameraBackground.material != null )
+                    Graphics.Blit( null, MasterCameraFeed, _arCameraBackground.material );
+            }
         }
 
         public string GetImageName( Guid guid )

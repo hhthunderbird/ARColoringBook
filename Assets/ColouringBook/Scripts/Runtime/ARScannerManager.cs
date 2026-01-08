@@ -12,8 +12,9 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.UI;
 
-namespace Felina.ARColoringBook
+namespace Felina.ARColoringBook.Runtime
 {
     [Serializable]
     public struct ReferencePair
@@ -39,13 +40,27 @@ namespace Felina.ARColoringBook
         private List<ReferencePair> _referenceImages = new List<ReferencePair>();
         private readonly Dictionary<string, Texture2D> _refLookup = new Dictionary<string, Texture2D>();
 
+        [SerializeField] private Material _unwarpMaterial;
+
+        private NativeArray<float2> _nativeScreenPoints;
+        private NativeArray<float4x4> _nativeResultMatrix;
+
+        private static readonly int _refTexID = Shader.PropertyToID( "_RefTex" );
+        private static readonly int _mainTexPropertyID = Shader.PropertyToID( "_MainTex" );
+        private static readonly int _unwarpPropertyID = Shader.PropertyToID( "_Unwarp" );
+
+        private ScanTarget _target;
+        public event Action OnTextureCaptured;
+
+        private CancellationTokenSource _cancellationToken;
+        private ScanFeedbackEvent _feedbackEvent = new ScanFeedbackEvent();
 
         private void OnValidate()
         {
 #if UNITY_EDITOR
             if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
                 return;
-            
+
             var imageManager = FindObjectOfType<UnityEngine.XR.ARFoundation.ARTrackedImageManager>();
             if ( imageManager == null || imageManager.referenceLibrary == null )
             {
@@ -55,7 +70,7 @@ namespace Felina.ARColoringBook
             try
             {
                 if ( imageManager.referenceLibrary.count == 0 )
-                    return; 
+                    return;
             }
             catch
             {
@@ -97,25 +112,6 @@ namespace Felina.ARColoringBook
 #endif
         }
 
-
-        [SerializeField] private Material _unwarpMaterial;
-
-        private NativeArray<float2> _nativeScreenPoints;
-        private NativeArray<float4x4> _nativeResultMatrix;
-
-        // Cache material property IDs for better performance
-        private static readonly int _refTexID = Shader.PropertyToID( "_RefTex" );
-        private static readonly int _mainTexPropertyID = Shader.PropertyToID( "_MainTex" );
-        private static readonly int _unwarpPropertyID = Shader.PropertyToID( "_Unwarp" );
-        private static readonly int _displayMatrixPropertyID = Shader.PropertyToID( "_DisplayMatrix" );
-        private Matrix4x4? _currentCameraMatrix;
-
-        private ScanTarget _target;
-        public event Action OnTextureCaptured;
-
-        private CancellationTokenSource _cancellationToken;
-        private ScanFeedbackEvent _feedbackEvent = new ScanFeedbackEvent();
-
         private void Awake()
         {
             if ( Instance != null ) Destroy( Instance );
@@ -146,7 +142,8 @@ namespace Felina.ARColoringBook
             await UniTask.WaitUntil( () => ARFoundationBridge.Instance != null );
 
             ARFoundationBridge.Instance.OnTargetAdded += OnTargetAdded;
-            ARFoundationBridge.Instance.OnDisplayMatrixUpdated -= OnDisplayMatrixUpdated;
+
+            EventManager.Subscribe<ToggleUIEvent>( OnToggleUIEvent );
 
             _arCamera = ARFoundationBridge.Instance.GetARCamera();
 
@@ -160,6 +157,9 @@ namespace Felina.ARColoringBook
             _nativeResultMatrix = new NativeArray<float4x4>( 1, Allocator.Persistent );
         }
 
+        private void OnToggleUIEvent( ToggleUIEvent args ) { if ( !args.State ) _cancellationToken?.Cancel(); }
+
+
         void OnDestroy()
         {
             if ( _nativeScreenPoints.IsCreated ) _nativeScreenPoints.Dispose();
@@ -171,11 +171,9 @@ namespace Felina.ARColoringBook
         void OnEnable() => Start();
         void OnDisable()
         {
-            ARFoundationBridge.Instance.OnDisplayMatrixUpdated -= OnDisplayMatrixUpdated;
-            ARFoundationBridge.Instance.OnTargetAdded -= OnTargetAdded;
+            if ( ARFoundationBridge.Instance != null )
+                ARFoundationBridge.Instance.OnTargetAdded -= OnTargetAdded;
         }
-
-        private void OnDisplayMatrixUpdated( float4x4 m ) => _currentCameraMatrix = m;
 
         private unsafe void ProcessCaptureGPU()
         {
@@ -200,10 +198,10 @@ namespace Felina.ARColoringBook
             var topRight = tPos + halfExtentX + halfExtentZ;
             var topLeft = tPos - halfExtentX + halfExtentZ;
 
-            _nativeScreenPoints[ 0 ] = ToScreen( bottomLeft );  
-            _nativeScreenPoints[ 1 ] = ToScreen( bottomRight ); 
-            _nativeScreenPoints[ 2 ] = ToScreen( topRight );    
-            _nativeScreenPoints[ 3 ] = ToScreen( topLeft );     
+            _nativeScreenPoints[ 0 ] = ToScreen( bottomLeft );
+            _nativeScreenPoints[ 1 ] = ToScreen( bottomRight );
+            _nativeScreenPoints[ 2 ] = ToScreen( topRight );
+            _nativeScreenPoints[ 3 ] = ToScreen( topLeft );
 
 
 #if UNITY_2021_2_OR_NEWER
@@ -218,11 +216,8 @@ namespace Felina.ARColoringBook
 
             ComputeTransformMatrix( resolution.width, resolution.height, _nativeScreenPoints.GetUnsafePtr(), _nativeResultMatrix.GetUnsafePtr() );
 
-            var H = _nativeResultMatrix[ 0 ];
-
             var cameraSource = ARFoundationBridge.Instance.MasterCameraFeed;
 
-            // Ensure we have a valid texture
             if ( cameraSource == null || !cameraSource.IsCreated() )
             {
                 Debug.LogWarning( "[ARScannerManager] Camera feed not ready" );
@@ -245,21 +240,21 @@ namespace Felina.ARColoringBook
                 _unwarpMaterial.SetTexture( _refTexID, Texture2D.whiteTexture );
 
             _unwarpMaterial.SetTexture( _mainTexPropertyID, cameraSource );
-            
-            _unwarpMaterial.SetMatrix( _unwarpPropertyID, H );
 
-            var matrixToUse = _currentCameraMatrix.GetValueOrDefault( Matrix4x4.identity );
-
-            _unwarpMaterial.SetMatrix( _displayMatrixPropertyID, matrixToUse );
+            _unwarpMaterial.SetMatrix( _unwarpPropertyID, _nativeResultMatrix[ 0 ] );
 
             Graphics.Blit( cameraSource, tempRT, _unwarpMaterial );
 
             Graphics.Blit( tempRT, cameraSource );
 
+            ri.texture = cameraSource;
+
             RenderTexture.ReleaseTemporary( tempRT );
 
             OnTextureCaptured?.Invoke();
         }
+
+        public RawImage ri;
 
         private float2 ToScreen( float3 worldPos )
         {
@@ -355,12 +350,9 @@ namespace Felina.ARColoringBook
 
         private async void ProcessRT()
         {
-            _cancellationToken?.Cancel();
             await UniTask.WaitForEndOfFrame();
             ProcessCaptureGPU();
         }
-
-
 
         [BurstCompile]
         public struct ScannerJob : IJob
@@ -449,7 +441,7 @@ namespace Felina.ARColoringBook
 
                     if ( sqrDistCam < minSq || sqrDistCam > maxSq )
                         distScore = distPenalty;
-                    
+
                     var quality = ( angleScore * weightAngle ) + ( centerScore * weightCenter * distScore );
 
 #if UNITY_2021_2_OR_NEWER

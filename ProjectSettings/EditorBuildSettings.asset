@@ -9,18 +9,9 @@ EditorBuildSettings:
     path: Assets/ColouringBook/Scenes/ARFoundationSample.unity
     guid: d97bfd586cf099d45a925f115b95aa4e
   m_configObjects:
-    UnityEditor.XR.ARCore.ARCoreSettings: {fileID: 11400000, guid: 231578a6023d5dd4d856d687c7b97abc,
-      type: 2}
-    UnityEditor.XR.ARKit.ARKitSettings: {fileID: 11400000, guid: ec64ca786d43905498178baf2391b74d,
-      type: 2}
     com.unity.xr.arcore.PlayerSettings: {fileID: 11400000, guid: 481c80eca857e3f45b985d45628303ae,
       type: 2}
-    com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 506fa77e4e8cab844a2e7bd041a34e9b,
+    com.unity.xr.arkit.PlayerSettings: {fileID: 11400000, guid: 20b95e6111dd69942b990617717c40f1,
       type: 2}
-    com.unity.xr.arkit.PlayerSettings: {fileID: 11400000, guid: 2d5fb8e61571b4e3897f221189089fd6,
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 9dbbcc4ef5e754cba807b53e35f3c708,
       type: 2}
-    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 86119007f30d3c8408b0d8aad04e0f06,
-      type: 2}
-    com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 868abcc5d9dfe094ea9b2cf5c4a21e74,
-      type: 2}
-  m_UseUCBPForAssetBundles: 0

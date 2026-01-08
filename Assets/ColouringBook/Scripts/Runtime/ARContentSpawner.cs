@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 
-namespace Felina.ARColoringBook
+namespace Felina.ARColoringBook.Runtime
 {
     [Serializable]
     public struct TargetData
@@ -130,7 +130,6 @@ if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
                 _targetDataDictionary[ pair.imageGuid ] = pair;
             }
 
-            // Debug log to verify initialization
             Debug.Log( $"ARContentSpawner initialized with {_targetDataDictionary.Count} targets" );
         }
 
@@ -182,25 +181,60 @@ if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
 
             var renderer = target.renderer;
 
-            if ( renderer == null ) return;
+            if ( renderer == null )
+            {
+                Debug.LogWarning( "ARContentSpawner.UpdateModel: Renderer is null!" );
+                return;
+            }
 
             var sharedMats = renderer.sharedMaterials;
 
             var _materialIndex = target.materialIndex;
 
-            if ( _materialIndex < 0 || _materialIndex >= sharedMats.Length ) return;
+            if ( _materialIndex < 0 || _materialIndex >= sharedMats.Length )
+            {
+                Debug.LogWarning( $"ARContentSpawner.UpdateModel: Material index {_materialIndex} out of range (0-{sharedMats.Length - 1})" );
+                return;
+            }
 
             var sharedMat = sharedMats[ _materialIndex ];
-            if ( sharedMat == null ) return;
+            if ( sharedMat == null )
+            {
+                Debug.LogWarning( "ARContentSpawner.UpdateModel: SharedMaterial is null!" );
+                return;
+            }
+
+            var masterFeed = ARFoundationBridge.Instance.MasterCameraFeed;
+            if ( masterFeed == null || !masterFeed.IsCreated() )
+            {
+                Debug.LogError( "[ARContentSpawner] MasterCameraFeed is NULL or not created! Cannot apply texture." );
+                return;
+            }
 
             renderer.GetPropertyBlock( _propBlock, _materialIndex );
 
+            bool textureSet = false;
             foreach ( var propId in _candidates )
             {
                 if ( sharedMat.HasProperty( propId ) )
                 {
-                    _propBlock.SetTexture( propId, ARFoundationBridge.Instance.MasterCameraFeed );
+                    string propName = sharedMat.shader.GetPropertyName( propId );
+                    Debug.Log( $"[ARContentSpawner] ? Setting texture to property: {propName} (ID: {propId})" );
+                    _propBlock.SetTexture( propId, masterFeed );
+                    textureSet = true;
                     break;
+                }
+            }
+
+            if ( !textureSet )
+            {
+                Debug.LogError( $"[ARContentSpawner] ? Material '{sharedMat.name}' has NONE of the candidate properties: _BaseMap, _MainTex, _DrawingTex!" );
+                for ( int i = 0; i < sharedMat.shader.GetPropertyCount(); i++ )
+                {
+                    if ( sharedMat.shader.GetPropertyType( i ) == UnityEngine.Rendering.ShaderPropertyType.Texture )
+                    {
+                        Debug.Log( $"  - {sharedMat.shader.GetPropertyName( i )}" );
+                    }
                 }
             }
 

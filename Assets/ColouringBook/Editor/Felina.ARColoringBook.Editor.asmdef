@@ -1,12 +1,12 @@
 {
     "name": "Felina.ARColoringBook.Editor",
-    "rootNamespace": "Felina.ARColoringBook.Editor",
     "references": [
         "Felina.ARColoringBook.Runtime",
         "Unity.XR.ARFoundation",
         "Unity.XR.ARSubsystems",
         "Unity.XR.ARFoundation.Editor",
-        "Unity.RenderPipelines.Universal.Runtime"
+        "Unity.RenderPipelines.Universal.Runtime",
+        "UnityEngine.SpatialTracking"
     ],
     "includePlatforms": [
         "Editor"
@@ -18,6 +18,16 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [
+        {
+            "name": "com.unity.xr.arfoundation",
+            "expression": "1.0.0",
+            "define": "AR_FOUNDATION_READY"
+        },
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "1.0.0",
+            "define": "URP_PRESENT"
+        },
         {
             "name": "com.unity.xr.arfoundation",
             "expression": "2.0.0",

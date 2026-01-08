@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 using System;
 using Felina.ARColoringBook.Base;
 
@@ -11,6 +12,18 @@ using System.Linq;
 
 namespace Felina.ARColoringBook
 {
+    public enum RenderPipelineMode
+    {
+        AutoDetect,
+        BuiltIn,
+        URP
+    }
+
+    // AR Foundation URP compatibility matrix
+    // AR Foundation 2.x: URP NOT supported (black screen issue)
+    // AR Foundation 3.x: URP partial support (unstable)
+    // AR Foundation 4.x+: URP fully supported
+
     [CreateAssetMenu( fileName = "Settings", menuName = "ColouringBook/Settings" )]
     public class Settings : ScriptableObject
     {
@@ -38,6 +51,17 @@ if ( _instance == null )
         public float MIN_SCAN_DIST = 0.2f;
         public float MAX_SCAN_DIST = 1.0f;
         [Range( 0f, 1f )] public float DIST_PENALTY = 0.5f;
+
+        [Header( "Render Pipeline" )]
+        [Tooltip( "Auto-detect: Automatically detect the render pipeline\nBuilt-in: Force Built-in Render Pipeline\nURP: Force Universal Render Pipeline" )]
+        [SerializeField] private RenderPipelineMode _renderPipelineMode = RenderPipelineMode.AutoDetect;
+        public RenderPipelineMode RenderPipelineMode => _renderPipelineMode;
+
+        private bool _isURP = false;
+        public bool IsURP => _isURP;
+
+        private bool _urpCompatible = false;
+        public bool IsURPCompatible => _urpCompatible;
 
         [Header( "Configuration" )]
         [SerializeField] private int _maxResolution = 720;
@@ -79,6 +103,9 @@ if ( _instance == null )
 
         private void InitializeRuntimeValues()
         {
+            // Detect or set render pipeline
+            DetermineRenderPipeline();
+
             var screenResolution = Screen.currentResolution;
 
             if ( screenResolution.height == 0 ) screenResolution.height = 1080;
@@ -102,6 +129,59 @@ if ( _instance == null )
             };
 
             IsInitialized = true;
+        }
+
+        private void DetermineRenderPipeline()
+        {
+            // Check AR Foundation URP compatibility
+            CheckARFoundationURPCompatibility();
+
+            switch ( _renderPipelineMode )
+            {
+                case RenderPipelineMode.AutoDetect:
+                    _isURP = GraphicsSettings.currentRenderPipeline != null;
+                    if ( _isURP && !_urpCompatible )
+                    {
+                        Debug.LogWarning( "[Settings] URP detected but AR Foundation version may not be compatible. Forcing Built-in pipeline." );
+                        Debug.LogWarning( "[Settings] AR Foundation 2.x does NOT support URP properly (black screen issue)." );
+                        Debug.LogWarning( "[Settings] AR Foundation 4.x+ is required for URP support. Current version may be incompatible." );
+                        _isURP = false; // Force built-in for incompatible versions
+                    }
+                    Debug.Log( $"[Settings] Auto-detected render pipeline: {( _isURP ? "URP" : "Built-in" )}" );
+                    break;
+                case RenderPipelineMode.BuiltIn:
+                    _isURP = false;
+                    Debug.Log( "[Settings] Using Built-in Render Pipeline (forced)" );
+                    break;
+                case RenderPipelineMode.URP:
+                    if ( !_urpCompatible )
+                    {
+                        Debug.LogError( "[Settings] ?? WARNING: URP forced but AR Foundation version is NOT compatible!" );
+                        Debug.LogError( "[Settings] AR Foundation 2.x does NOT support URP (will show black screen)." );
+                        Debug.LogError( "[Settings] AR Foundation 4.x+ is required for URP. Expect rendering issues!" );
+                    }
+                    _isURP = true;
+                    Debug.Log( "[Settings] Using URP (forced)" );
+                    break;
+            }
+        }
+
+        private void CheckARFoundationURPCompatibility()
+        {
+            // Check for AR Foundation version defines
+            // AR Foundation 4.0+ has proper URP support
+            #if AR_FOUNDATION_4_OR_NEWER || AR_FOUNDATION_5_OR_NEWER || AR_FOUNDATION_6_OR_NEWER
+                _urpCompatible = true;
+                Debug.Log( "[Settings] AR Foundation 4.x+ detected - URP is supported" );
+            #elif UNITY_2020_2_OR_NEWER
+                // Unity 2020.2+ likely has AR Foundation 3.x or 4.x
+                _urpCompatible = true;
+                Debug.Log( "[Settings] Unity 2020.2+ detected - URP likely supported" );
+            #else
+                // Unity 2019.4 with AR Foundation 2.x - URP NOT supported
+                _urpCompatible = false;
+                Debug.LogWarning( "[Settings] AR Foundation 2.x detected - URP NOT supported (Unity 2019.4)" );
+            #endif
         }
 
         private void OnEnable() => _instance = this;

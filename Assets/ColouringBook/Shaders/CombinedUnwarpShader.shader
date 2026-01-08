@@ -17,7 +17,8 @@ Shader "Felina/CombinedUnwarpShader"
             #pragma fragment frag
             
             #include "UnityCG.cginc"
-            
+            #define IDENTITY_MATRIX float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -32,18 +33,15 @@ Shader "Felina/CombinedUnwarpShader"
             
             sampler2D _MainTex;
             float4x4 _Unwarp;
-            float4x4 _DisplayMatrix;
             
             v2f vert (appdata v)
             {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
-                
-                // Apply homography transform
                 float3 uvH = float3(v.uv.x, v.uv.y, 1.0);
                 float3 transformed = mul((float3x3)_Unwarp, uvH);
                 float2 unwarpedUV = transformed.xy / transformed.z;
-                float4 finalUV = mul(_DisplayMatrix, float4(unwarpedUV, 0, 1));
+                float4 finalUV = mul(IDENTITY_MATRIX, float4(unwarpedUV, 0, 1));
                 
                 o.uv = finalUV.xy;
                 
