@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 using UnityEngine;
-// 2019.4 uses UnityEditor.SceneManagement, same as 2021+
 using UnityEditor.SceneManagement;
+using UnityEngine.SpatialTracking;
 
 namespace Felina.ARColoringBook.Editor
 {
@@ -56,7 +57,7 @@ namespace Felina.ARColoringBook.Editor
         public static void ShowWindow()
         {
             var win = GetWindow<ARProjectSetupWizard>( "AR Setup" );
-            win.minSize = new Vector2( 450, 500 );
+            win.minSize = new Vector2( 450, 600 ); 
             win.Show();
             win.RefreshAnalysis();
         }
@@ -73,7 +74,7 @@ namespace Felina.ARColoringBook.Editor
             _unityVersionMajor = Application.unityVersion.Split( '.' )[ 0 ];
             DetermineRecommendations();
 
-            _hasLegacyUniTask = System.IO.Directory.Exists( "Assets/Plugins/UniTask" );
+            _hasLegacyUniTask = Directory.Exists( "Assets/Plugins/UniTask" );
 
             _isCheckingPackages = true;
             _statusMessage = "Refreshing Package List...";
@@ -91,31 +92,24 @@ namespace Felina.ARColoringBook.Editor
             else _recommendedArVersion = "6.0.0";
         }
 
-        // --- SCENE GENERATION LOGIC ---
-
         private void CreateUniversalARScene()
         {
             try
             {
-                // 1. Create New Scene
                 var newScene = EditorSceneManager.NewScene( NewSceneSetup.EmptyScene, NewSceneMode.Single );
                 newScene.name = "AR_ImageTracking_Auto";
 
-                // 2. Create AR Session
                 GameObject sessionGO = new GameObject( "AR Session" );
                 AttachComponentSafe( sessionGO, "UnityEngine.XR.ARFoundation.ARSession" );
                 AttachComponentSafe( sessionGO, "UnityEngine.XR.ARFoundation.ARInputManager" );
 
-                // 3. Create Camera
                 GameObject cameraGO = new GameObject( "Main Camera" );
                 cameraGO.tag = "MainCamera";
                 Camera cam = cameraGO.AddComponent<Camera>();
 
-                // 4. Create Origin (Split by Version to avoid Compile Errors)
                 GameObject originGO = null;
 
 #if UNITY_2021_2_OR_NEWER
-                // --- MODERN UNITY (XROrigin) ---
                 Debug.Log("Creating Modern AR Setup (XROrigin)...");
                 Type xrOriginType = GetTypeSafe("Unity.XR.CoreUtils.XROrigin");
                 if (xrOriginType == null) xrOriginType = GetTypeSafe("UnityEngine.XR.CoreUtils.XROrigin");
@@ -129,7 +123,6 @@ namespace Felina.ARColoringBook.Editor
                     offsetGO.transform.SetParent(originGO.transform, false);
                     cameraGO.transform.SetParent(offsetGO.transform, false);
                     
-                    // XROrigin has explicit properties we must set
                     var camProp = xrOriginType.GetProperty("Camera");
                     if (camProp != null) camProp.SetValue(originComp, cam);
                     
@@ -137,14 +130,12 @@ namespace Felina.ARColoringBook.Editor
                     if (offsetProp != null) offsetProp.SetValue(originComp, offsetGO);
                 }
 #else
-                // --- LEGACY UNITY 2019/2020 (ARSessionOrigin) ---
                 Debug.Log( "Creating Legacy AR Setup (ARSessionOrigin)..." );
                 originGO = new GameObject( "AR Session Origin" );
                 AttachComponentSafe( originGO, "UnityEngine.XR.ARFoundation.ARSessionOrigin" );
                 cameraGO.transform.SetParent( originGO.transform, false );
 #endif
 
-                // 5. Setup Camera Components
                 cam.clearFlags = CameraClearFlags.SolidColor;
                 cam.backgroundColor = Color.black;
                 cam.nearClipPlane = 0.1f;
@@ -152,9 +143,10 @@ namespace Felina.ARColoringBook.Editor
 
                 AttachComponentSafe( cameraGO, "UnityEngine.XR.ARFoundation.ARCameraManager" );
                 AttachComponentSafe( cameraGO, "UnityEngine.XR.ARFoundation.ARCameraBackground" );
-                AttachComponentSafe( cameraGO, "UnityEngine.SpatialTracking.TrackedPoseDriver" );
+                var trackedPoseDriver = AttachComponentSafe( cameraGO, "UnityEngine.SpatialTracking.TrackedPoseDriver" ) as TrackedPoseDriver;
+                trackedPoseDriver.SetPoseSource( TrackedPoseDriver.DeviceType.GenericXRDevice, TrackedPoseDriver.TrackedPose.ColorCamera );
+                trackedPoseDriver.UseRelativeTransform = true;
 
-                // 6. Add Image Tracking & Spawner
                 if ( originGO != null )
                 {
                     var tracker = AttachComponentSafe( originGO, "UnityEngine.XR.ARFoundation.ARTrackedImageManager" );
@@ -162,23 +154,14 @@ namespace Felina.ARColoringBook.Editor
 
                     if ( tracker != null && _userReferenceLibrary != null )
                     {
-                        // --- FIX FOR 2019.4 CRASH ---
-                        // We MUST use SerializedObject. Setting properties via C# triggers runtime logic
-                        // which fails because the AR Subsystem is not actually running in Edit Mode.
                         SerializedObject so = new SerializedObject( tracker );
                         so.Update();
 
-                        // 2019.4 uses "m_ReferenceLibrary" or "m_SerializedLibrary" depending on patch version.
-                        // Newer versions use "m_SerializedLibrary". We check both.
                         SerializedProperty libProp = so.FindProperty( "m_SerializedLibrary" );
                         if ( libProp == null ) libProp = so.FindProperty( "m_ReferenceLibrary" );
 
-                        if ( libProp != null )
-                        {
-                            libProp.objectReferenceValue = _userReferenceLibrary;
-                        }
+                        if ( libProp != null ) libProp.objectReferenceValue = _userReferenceLibrary;
 
-                        // Set Max Images
                         SerializedProperty maxProp = so.FindProperty( "m_MaxNumberOfMovingImages" );
                         if ( maxProp != null ) maxProp.intValue = 4;
 
@@ -186,13 +169,11 @@ namespace Felina.ARColoringBook.Editor
                     }
                 }
 
-                // 7. Create Light
                 GameObject lightGO = new GameObject( "Directional Light" );
                 Light light = lightGO.AddComponent<Light>();
                 light.type = LightType.Directional;
                 lightGO.transform.rotation = Quaternion.Euler( 50, -30, 0 );
 
-                // 8. Create Managers
                 GameObject managersGO = new GameObject( "AR Managers" );
                 AttachComponentSafe( managersGO, "ARScannerManager" );
                 AttachComponentSafe( managersGO, "ARFoundationBridge" );
@@ -211,7 +192,6 @@ namespace Felina.ARColoringBook.Editor
         {
             Type t = GetTypeSafe( typeName );
             if ( t != null ) return go.AddComponent( t );
-            Debug.LogWarning( $"Could not find type '{typeName}'. Package might be missing." );
             return null;
         }
 
@@ -314,7 +294,53 @@ namespace Felina.ARColoringBook.Editor
             }
         }
 
-        // --- GUI RENDER ---
+        private void RepairAsmdefs()
+        {
+            string[] asmdefFiles = new string[]
+            {
+                "Assets/ColouringBook/Scripts/Runtime/Felina.ARColoringBook.Runtime.asmdef",
+                "Assets/ColouringBook/Scripts/Editor/Felina.ARColoringBook.Editor.asmdef",
+                "Assets/ColouringBook/Scripts/Events/Felina.ARColoringBook.Events.asmdef"
+            };
+
+            bool changed = false;
+
+            foreach ( var path in asmdefFiles )
+            {
+                if ( !File.Exists( path ) ) continue;
+
+                string json = File.ReadAllText( path );
+                bool fileChanged = false;
+
+                if ( !json.Contains( "\"UniTask\"" ) )
+                {
+                    if ( json.Contains( "\"references\": [" ) )
+                    {
+                        json = json.Replace( "\"references\": [", "\"references\": [\n        \"UniTask\"," );
+                        fileChanged = true;
+                        Debug.Log( $"Added UniTask reference to {Path.GetFileName( path )}" );
+                    }
+                }
+
+                if ( fileChanged )
+                {
+                    File.WriteAllText( path, json );
+                    changed = true;
+                }
+
+                AssetDatabase.ImportAsset( path, ImportAssetOptions.ForceUpdate );
+            }
+
+            if ( changed )
+            {
+                AssetDatabase.Refresh();
+                EditorUtility.DisplayDialog( "Repair Complete", "Assembly Definitions have been updated. Scripts should recompile now.", "OK" );
+            }
+            else
+            {
+                EditorUtility.DisplayDialog( "Refreshed", "Forced re-evaluation of Assembly Definitions.", "OK" );
+            }
+        }
 
         private void OnGUI()
         {
@@ -332,6 +358,7 @@ namespace Felina.ARColoringBook.Editor
             DrawEnvironmentSection();
             DrawDependenciesSection();
             DrawSceneSetupSection();
+            DrawRepairSection();
 
             EditorGUILayout.EndScrollView();
         }
@@ -392,7 +419,6 @@ namespace Felina.ARColoringBook.Editor
         private void DrawSceneSetupSection()
         {
             EditorGUILayout.LabelField( "Scene Auto-Setup", EditorStyles.boldLabel );
-
             var arfPkg = _packages.FirstOrDefault( p => p.Id == ARF_PACKAGE_ID );
             bool canCreate = arfPkg != null && arfPkg.IsInstalled;
 
@@ -412,6 +438,22 @@ namespace Felina.ARColoringBook.Editor
                 else
                 {
                     EditorGUILayout.HelpBox( "Install AR Foundation first.", MessageType.Warning );
+                }
+            }
+            EditorGUILayout.Space();
+        }
+
+        private void DrawRepairSection()
+        {
+            EditorGUILayout.LabelField( "Troubleshooting", EditorStyles.boldLabel );
+            using ( new EditorGUILayout.VerticalScope( EditorStyles.helpBox ) )
+            {
+                EditorGUILayout.LabelField( "Scripts missing references? Click below." );
+                EditorGUILayout.HelpBox( "This forces Unity to re-check all Assembly Definitions (asmdef) and ensures UniTask is linked correctly.", MessageType.Info );
+
+                if ( GUILayout.Button( "Repair Assembly Definitions", GUILayout.Height( 30 ) ) )
+                {
+                    RepairAsmdefs();
                 }
             }
         }
