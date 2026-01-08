@@ -1,12 +1,12 @@
 {
     "name": "Felina.ARColoringBook.Editor",
-    "rootNamespace": "Felina.ARColoringBook.Editor",
     "references": [
         "Felina.ARColoringBook.Runtime",
         "Unity.XR.ARFoundation",
         "Unity.XR.ARSubsystems",
         "Unity.XR.ARFoundation.Editor",
-        "Unity.RenderPipelines.Universal.Runtime"
+        "Unity.RenderPipelines.Universal.Runtime",
+        "UnityEngine.SpatialTracking"
     ],
     "includePlatforms": [
         "Editor"

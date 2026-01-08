@@ -1,7 +1,7 @@
 {
     "name": "Felina.ARColoringBook.Runtime",
     "rootNamespace": "Felina.ARColoringBook",
-    "references": [
+    "references": [ 
         "Unity.XR.ARFoundation",
         "Unity.XR.ARSubsystems",
         "Unity.Mathematics",
