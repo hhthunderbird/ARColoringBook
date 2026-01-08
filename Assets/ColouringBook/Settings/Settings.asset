@@ -12,10 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0c44ca9244a85a4c8956afa6c3888e5, type: 3}
   m_Name: Settings
   m_EditorClassIdentifier: Assembly-CSharp::Settings
-  MAX_FEED_RES: 3840
-  DEFAULT_TARGET_FRAME_RATE: 60
-  DEFAULT_CAPTURE_THRESHOLD: 0.85
-  DEFAULT_MAX_MOVE_SPEED: 0.05
-  DEFAULT_MAX_ROTATE_SPEED: 5
-  EPSILON_SMALL: 0.00001
+  WEIGHT_ANGLE: 0.6
+  WEIGHT_CENTER: 0.4
+  MIN_SCAN_DIST: 0.2
+  MAX_SCAN_DIST: 1
+  DIST_PENALTY: 0.5
+  _renderPipelineMode: 1
+  _maxResolution: 720
+  _maxFeedRes: 3840
+  _targetFrameRate: 60
+  _captureThreshold: 0.75
+  _maxMoveSpeed: 0.05
+  _maxRotateSpeed: 5
   DEFAULT_RENDERTEXTURE_FORMAT: 2
