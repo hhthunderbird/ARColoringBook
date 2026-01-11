@@ -24,7 +24,7 @@ namespace Felina.ARColoringBook
     // AR Foundation 3.x: URP partial support (unstable)
     // AR Foundation 4.x+: URP fully supported
 
-    [CreateAssetMenu( fileName = "Settings", menuName = "ColouringBook/Settings" )]
+    [CreateAssetMenu( fileName = "Settings", menuName = "ColoringBook/Settings" )]
     public class Settings : ScriptableObject
     {
         private static Settings _instance;
@@ -173,6 +173,14 @@ if ( _instance == null )
             #if AR_FOUNDATION_4_OR_NEWER || AR_FOUNDATION_5_OR_NEWER || AR_FOUNDATION_6_OR_NEWER
                 _urpCompatible = true;
                 Debug.Log( "[Settings] AR Foundation 4.x+ detected - URP is supported" );
+            #elif UNITY_6000 || UNITY_6000_0_OR_NEWER
+    // Unity 6 has full URP support with any AR Foundation version
+    _urpCompatible = true;
+    Debug.Log( "[Settings] Unity 6+ detected - URP is fully supported" );
+#elif UNITY_2022_1_OR_NEWER
+    // Unity 2022+ likely has AR Foundation 5.x or newer
+    _urpCompatible = true;
+    Debug.Log( "[Settings] Unity 2022+ detected - URP is supported" );
             #elif UNITY_2020_2_OR_NEWER
                 // Unity 2020.2+ likely has AR Foundation 3.x or 4.x
                 _urpCompatible = true;
@@ -234,7 +242,7 @@ if ( _instance == null )
                 }
                 else
                 {
-                    Debug.LogError( "[GameSettings] BUILD FAILURE: Could not find a 'Settings' asset in the project! Please create one via Create > ColouringBook > Settings." );
+                    Debug.LogError( "[GameSettings] BUILD FAILURE: Could not find a 'Settings' asset in the project! Please create one via Create > ColoringBook > Settings." );
                 }
             }
         }
