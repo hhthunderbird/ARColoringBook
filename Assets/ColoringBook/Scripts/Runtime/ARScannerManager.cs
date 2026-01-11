@@ -12,7 +12,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.UI;
+//using UnityEngine.UI;
 
 namespace Felina.ARColoringBook.Runtime
 {
@@ -247,14 +247,14 @@ namespace Felina.ARColoringBook.Runtime
 
             Graphics.Blit( tempRT, cameraSource );
 
-            ri.texture = cameraSource;
+            //ri.texture = cameraSource;
 
             RenderTexture.ReleaseTemporary( tempRT );
 
             OnTextureCaptured?.Invoke();
         }
 
-        public RawImage ri;
+        //public RawImage ri;
 
         private float2 ToScreen( float3 worldPos )
         {

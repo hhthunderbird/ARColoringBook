@@ -218,8 +218,6 @@ if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
             {
                 if ( sharedMat.HasProperty( propId ) )
                 {
-                    string propName = sharedMat.shader.GetPropertyName( propId );
-                    Debug.Log( $"[ARContentSpawner] ? Setting texture to property: {propName} (ID: {propId})" );
                     _propBlock.SetTexture( propId, masterFeed );
                     textureSet = true;
                     break;
