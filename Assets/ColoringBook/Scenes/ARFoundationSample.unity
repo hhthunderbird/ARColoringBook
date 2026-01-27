@@ -470,7 +470,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Felina.ARColoringBook.Runtime::Felina.ARColoringBook.Bridges.ARFoundationBridge
   _aRTrackedImageManager: {fileID: 1826509928}
   _cameraManager: {fileID: 1519010790}
-  _arCameraBackground: {fileID: 1519010789}
   _arCamera: {fileID: 1519010791}
 --- !u!114 &303546463
 MonoBehaviour:
@@ -484,10 +483,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7242bcf47f42a9c4b941e48d07a7d82f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Felina.ARColoringBook.Runtime::Felina.ARColoringBook.ARScannerManager
-  _referenceImages:
-  - ReferenceName: delivery-outline
-    OriginalTexture: {fileID: 2800000, guid: 7d4c54fd5ac5abd49b3c071eedca82de, type: 3}
-  _unwarpMaterial: {fileID: 2100000, guid: de887ff255b52f24eb1590569fcaa106, type: 2}
+  _material: {fileID: 2100000, guid: 59633f0d44b1bed42bfb85bd7b4f58bd, type: 2}
+  _outputSize: 1024
+  _inlierThreshold: 4
+  _maxIterations: 200
+  _refineWithLM: 1
+  _feedbackIntervalMs: 100
+  _rotationTypeProperty: _RotationType
+  _rotationAngleProperty: _RotationAngle
+  _srcSizeProperty: _SrcSize
+  _dstSizeProperty: _DstSize
 --- !u!4 &303546464
 Transform:
   m_ObjectHideFlags: 0
@@ -588,7 +593,6 @@ GameObject:
   m_Component:
   - component: {fileID: 689662914}
   - component: {fileID: 689662913}
-  - component: {fileID: 689662912}
   - component: {fileID: 689662911}
   - component: {fileID: 689662915}
   m_Layer: 5
@@ -615,29 +619,6 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &689662912
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 689662910}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
-  m_UiScaleMode: 0
-  m_ReferencePixelsPerUnit: 100
-  m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
-  m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0
-  m_PhysicalUnit: 3
-  m_FallbackScreenDPI: 96
-  m_DefaultSpriteDPI: 96
-  m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
 --- !u!223 &689662913
 Canvas:
   m_ObjectHideFlags: 0
@@ -656,6 +637,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
+  m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
@@ -703,6 +685,7 @@ MonoBehaviour:
   _colorUnstable: {r: 1, g: 0, b: 0, a: 1}
   _colorBadAngle: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   _colorReady: {r: 0, g: 1, b: 0, a: 1}
+  _readyThreshold: 0.95
 --- !u!1 &743919885
 GameObject:
   m_ObjectHideFlags: 0
@@ -1302,7 +1285,7 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1586674932}
   m_Enabled: 1
-  serializedVersion: 12
+  serializedVersion: 13
   m_Type: 1
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Intensity: 1
@@ -1354,7 +1337,7 @@ Light:
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ForceVisible: 0
-  m_ShadowRadius: 0
+  m_ShapeRadius: 0
   m_ShadowAngle: 0
   m_LightUnit: 1
   m_LuxAtDistance: 1
@@ -1413,6 +1396,12 @@ MonoBehaviour:
       type: 3}
     blankMarker: {fileID: 2800000, guid: 7d4c54fd5ac5abd49b3c071eedca82de, type: 3}
     materialIndex: 0
+  _baseMapProperty: _BaseMap
+  _mainTexProperty: _MainTex
+  _drawingTexProperty: _DrawingTex
+  _colorProperty: _Color
+  _baseColorProperty: _BaseColor
+  _tintColorProperty: _TintColor
 --- !u!114 &1826509928
 MonoBehaviour:
   m_ObjectHideFlags: 0

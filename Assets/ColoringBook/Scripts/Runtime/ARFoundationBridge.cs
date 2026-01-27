@@ -1,9 +1,7 @@
-using Cysharp.Threading.Tasks;
 using Felina.ARColoringBook.Base;
 using Felina.ARColoringBook.Events;
 using System;
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
@@ -14,24 +12,16 @@ namespace Felina.ARColoringBook.Bridges
     {
         public static ARFoundationBridge Instance;
 
-        [Header( "AR Foundation Dependencies" )]
-        [SerializeField]
-        private ARTrackedImageManager _aRTrackedImageManager;
-        public ARTrackedImageManager ARTrackedImageManager => _aRTrackedImageManager;
-
-        [SerializeField] private ARCameraManager _cameraManager;
-        [SerializeField] private ARCameraBackground _arCameraBackground;
-        [SerializeField] private Camera _arCamera;
-
-        public RenderTexture MasterCameraFeed { get; private set; }
-
-        private HashSet<TrackableId> _pendingAdds = new HashSet<TrackableId>();
-
         public event Action<ScanTarget> OnTargetAdded;
 
-        private string _lastTrackingImage;
+        [Header( "AR Foundation Dependencies" )]
+        [SerializeField] private ARTrackedImageManager _aRTrackedImageManager;
+        [SerializeField] private ARCameraManager _cameraManager;
+        [SerializeField] private Camera _arCamera;
 
-        private ToggleUIEvent _toggleUIEvent = new ToggleUIEvent( true );
+        private readonly HashSet<TrackableId> _pendingAdds = new HashSet<TrackableId>();
+        private readonly ToggleUIEvent _toggleUIEvent = new ToggleUIEvent( true );
+        private string _lastTrackingImage;
 
         private void Awake()
         {
@@ -39,32 +29,14 @@ namespace Felina.ARColoringBook.Bridges
             Instance = this;
         }
 
-        private void Start() => InitializeSharedRT().Forget();
-
-        private async UniTaskVoid InitializeSharedRT()
+        private void Start() 
         {
 #if UNITY_2020_2_OR_NEWER
             if ( _aRTrackedImageManager ) _aRTrackedImageManager.trackablesChanged.AddListener( OnTrackablesChanged );
 #else
             if ( _aRTrackedImageManager ) _aRTrackedImageManager.trackedImagesChanged += OnTrackedImagesChanged;
 #endif
-            await UniTask.WaitUntil( () => Settings.Instance.IsInitialized );
-
-            if ( MasterCameraFeed != null ) return;
-
-            var settings = Settings.Instance.RENDERTEXTURE_SETTINGS;
-
-            MasterCameraFeed = new RenderTexture( settings.Width, settings.Height, 0, settings.Format )
-            {
-                useMipMap = settings.UseMipMap,
-                autoGenerateMips = settings.AutoGenerateMips,
-                filterMode = settings.FilterMode,
-                anisoLevel = 9
-            };
-            MasterCameraFeed.Create();
         }
-
-        private void OnEnable() => Start();
 
         private void OnDisable()
         {
@@ -73,25 +45,22 @@ namespace Felina.ARColoringBook.Bridges
 #else
             if ( _aRTrackedImageManager ) _aRTrackedImageManager.trackedImagesChanged -= OnTrackedImagesChanged;
 #endif
-            OnDestroy();
         }
 
-
-        private void OnDestroy() => MasterCameraFeed?.Release();
-
+        
 
 #if UNITY_2020_2_OR_NEWER
         private void OnTrackablesChanged( ARTrackablesChangedEventArgs<ARTrackedImage> args )
         {
 #if AR_FOUNDATION_6_OR_NEWER
-var addedList = new List<ARTrackedImage>(args.added);
-            var updatedList = new List<ARTrackedImage>(args.updated);
+            var addedList = new List<ARTrackedImage>( args.added );
+            var updatedList = new List<ARTrackedImage>( args.updated );
             var removedList = new List<ARTrackedImage>();
-            foreach (var kvp in args.removed)
+            foreach ( var kvp in args.removed )
             {
-                removedList.Add(kvp.Value);
+                removedList.Add( kvp.Value );
             }
-            TrackableProcessing(addedList, updatedList, removedList);
+            TrackableProcessing( addedList, updatedList, removedList );
 #else
 TrackableProcessing(args.added, args.updated, args.removed);
 #endif
@@ -180,66 +149,24 @@ TrackableProcessing(args.added, args.updated, args.removed);
             return _arCamera;
         }
 
-        public ARCameraBackground GetARCameraBackground()
+        public XRCameraIntrinsics? GetCameraIntrinsics()
         {
-            return _arCameraBackground;
+            if ( _cameraManager == null )
+                return null;
+            if ( _cameraManager.TryGetIntrinsics( out XRCameraIntrinsics intrinsics ) )
+            {
+                return intrinsics;
+            }
+            return null;
         }
 
-        public void SetTargetRenderTexture( RenderTexture targetRT )
+        public XRCpuImage? GetXRCpuImage()
         {
-            if ( targetRT != null && !targetRT.IsCreated() )
-            {
-                Debug.LogError( "[ARFoundationBridge] Target RT must be created before setting!" );
-                return;
-            }
-            MasterCameraFeed = targetRT;
-        }
+            if ( _cameraManager == null ) return null;
 
-        public void UpdateCameraRT()
-        {
-            if ( MasterCameraFeed == null )
-            {
-                InitializeSharedRT().Forget();
-            }
+            if ( _cameraManager.TryAcquireLatestCpuImage( out XRCpuImage image ) )
+                return image;
 
-
-            float screenAspect = ( float ) Screen.width / Screen.height;
-            float rtAspect = ( float ) MasterCameraFeed.width / MasterCameraFeed.height;
-
-            // If the difference is significant (e.g., one is >1 and other is <1), we flipped orientation
-            if ( Mathf.Abs( screenAspect - rtAspect ) > 0.5f )
-            {
-                Debug.Log( $"[ARFoundationBridge] Screen rotation detected. Resizing RT from {MasterCameraFeed.width}x{MasterCameraFeed.height} to match screen aspect." );
-
-                // Swap width and height of the RenderTexture
-                int newWidth = MasterCameraFeed.height;
-                int newHeight = MasterCameraFeed.width;
-
-                MasterCameraFeed.Release();
-                MasterCameraFeed.width = newWidth;
-                MasterCameraFeed.height = newHeight;
-                MasterCameraFeed.Create();
-            }
-
-            if ( _arCameraBackground == null || _arCameraBackground.material == null ) return;
-
-            if ( MasterCameraFeed != null )
-            {
-                if ( _arCameraBackground.material != null )
-                    Graphics.Blit( null, MasterCameraFeed, _arCameraBackground.material );
-            }
-        }
-
-        public string GetImageName( Guid guid )
-        {
-            var library = _aRTrackedImageManager.referenceLibrary;
-            if ( library == null ) return null;
-
-            for ( int i = 0; i < library.count; i++ )
-            {
-                if ( library[ i ].guid == guid )
-                    return library[ i ].name;
-            }
             return null;
         }
     }

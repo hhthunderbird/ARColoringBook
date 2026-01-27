@@ -26,27 +26,36 @@ namespace Felina.ARColoringBook.Runtime
         [SerializeField]
         private List<TargetData> _targetData = new List<TargetData>();
 
-        private Dictionary<string, TargetData> _targetDataDictionary = new Dictionary<string, TargetData>();
+        [Header("Shader Property Names")]
+        [SerializeField] private string _baseMapProperty = "_BaseMap";
+        [SerializeField] private string _mainTexProperty = "_MainTex";
+        [SerializeField] private string _drawingTexProperty = "_DrawingTex";
+        [SerializeField] private string _colorProperty = "_Color";
+        [SerializeField] private string _baseColorProperty = "_BaseColor";
+        [SerializeField] private string _tintColorProperty = "_TintColor";
 
-        private Dictionary<string, GameObject> _instantiated = new Dictionary<string, GameObject>();
-        private HashSet<TrackableId> _pendingAdds = new HashSet<TrackableId>();
+        private readonly Dictionary<string, TargetData> _targetDataDictionary = new Dictionary<string, TargetData>();
+        private readonly Dictionary<string, GameObject> _instantiated = new Dictionary<string, GameObject>();
+        private readonly HashSet<TrackableId> _pendingAdds = new HashSet<TrackableId>();
 
         private MaterialPropertyBlock _propBlock;
-        private readonly int _colorId = Shader.PropertyToID( "_Color" );
-        private readonly int _baseColorId = Shader.PropertyToID( "_BaseColor" );
-        private readonly int _tintColorId = Shader.PropertyToID( "_TintColor" );
         private int[] _candidates;
-
+        private int _colorId;
+        private int _baseColorId;
+        private int _tintColorId;
         private string _lastObjectId;
 
         private void Awake()
         {
             _candidates = new int[]
             {
-                Shader.PropertyToID( "_BaseMap" ),
-                Shader.PropertyToID( "_MainTex" ),
-                Shader.PropertyToID( "_DrawingTex" )
-        };
+                Shader.PropertyToID(_baseMapProperty),
+                Shader.PropertyToID(_mainTexProperty),
+                Shader.PropertyToID(_drawingTexProperty)
+            };
+            _colorId = Shader.PropertyToID(_colorProperty);
+            _baseColorId = Shader.PropertyToID(_baseColorProperty);
+            _tintColorId = Shader.PropertyToID(_tintColorProperty);
             _propBlock = new MaterialPropertyBlock();
         }
 
@@ -165,7 +174,7 @@ if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
             }
         }
 
-        private void UpdateModel()
+        private void UpdateModel(RenderTexture capturedTexture)
         {
             if ( string.IsNullOrEmpty( _lastObjectId ) )
             {
@@ -204,13 +213,6 @@ if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
                 return;
             }
 
-            var masterFeed = ARFoundationBridge.Instance.MasterCameraFeed;
-            if ( masterFeed == null || !masterFeed.IsCreated() )
-            {
-                Debug.LogError( "[ARContentSpawner] MasterCameraFeed is NULL or not created! Cannot apply texture." );
-                return;
-            }
-
             renderer.GetPropertyBlock( _propBlock, _materialIndex );
 
             bool textureSet = false;
@@ -218,12 +220,12 @@ if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
             {
                 if ( sharedMat.HasProperty( propId ) )
                 {
-                    _propBlock.SetTexture( propId, masterFeed );
+                    _propBlock.SetTexture( propId, capturedTexture );
                     textureSet = true;
                     break;
                 }
             }
-
+            
             if ( !textureSet )
             {
                 Debug.LogError( $"[ARContentSpawner] ? Material '{sharedMat.name}' has NONE of the candidate properties: _BaseMap, _MainTex, _DrawingTex!" );
