@@ -9,6 +9,8 @@ EditorBuildSettings:
     path: Assets/ColoringBook/Scenes/ARFoundationSample.unity
     guid: d97bfd586cf099d45a925f115b95aa4e
   m_configObjects:
+    UnityEditor.XR.ARCore.ARCoreSettings: {fileID: 11400000, guid: 3bb08c3d942473249b9f7cc2585e0d4c,
+      type: 2}
     com.unity.xr.arcore.PlayerSettings: {fileID: 11400000, guid: 481c80eca857e3f45b985d45628303ae,
       type: 2}
     com.unity.xr.arkit.PlayerSettings: {fileID: 11400000, guid: 20b95e6111dd69942b990617717c40f1,

@@ -43,7 +43,7 @@ Think of this package like a **universal phone charger**:
 
 | Your Unity Version | Works With This Package? | AR Foundation Version | Status |
 |-------------------|------------------------|-----------------------|--------|
-| Unity 2019.4.x | ? Yes | 2.x | ?? Legacy Support |
+| Unity 2019.4 LTS | ? Yes | 4.1.x | ?? Minimum Required |
 | Unity 2020.3 LTS | ? Yes | 4.1.x | ?? Fully Supported |
 | Unity 2021.3 LTS | ? Yes | 4.2.x | ?? Fully Supported |
 | Unity 2022.3 LTS | ? Yes | 5.x | ?? **Recommended** |
@@ -142,9 +142,9 @@ You needed to support the package across multiple Unity versions (2019.4 - 6.3) 
 
 ### For Unity 2019.4 Users:
 1. Open project in Unity 2019.4
-2. Install AR Foundation 2.1.18 + platform plugins
+2. Install AR Foundation 4.1.30 + platform plugins
 3. Run **Felina > Validate Package Setup**
-4. Import AR Foundation 2.x samples (if needed)
+4. Import AR Foundation 4.x samples (if needed)
 5. ? Everything works
 
 ### For Unity 6.3 Users:
@@ -219,11 +219,11 @@ Felina Menu:
 ### Version-Specific Warnings:
 ```
 Unity 2019.4 with AR Foundation 6.x:
-? Unity 2019.4 should use AR Foundation 2.x, found 6.3.1
-? Recommends AR Foundation 2.1.18
+? Unity 2019.4 should use AR Foundation 4.x, found 6.3.1
+? Recommends AR Foundation 4.1.30
 
-Unity 6.3 with AR Foundation 2.x:
-? Unity 2023+/6.x should use AR Foundation 6.x, found 2.1.18
+Unity 6.3 with AR Foundation 4.x:
+? Unity 2023+/6.x should use AR Foundation 6.x, found 4.1.30
 ? Recommends AR Foundation 6.3.1
 ```
 
@@ -291,7 +291,7 @@ When Unity releases a new version:
 ```csharp
 else if (version.Major == 2024)
 {
-    messages.AppendLine("• AR Foundation: 7.x.x");
+    messages.AppendLine("ï¿½ AR Foundation: 7.x.x");
 }
 ```
 
@@ -302,7 +302,7 @@ else if (version.Major == 2024)
 To verify the solution works:
 
 - [ ] Open project in Unity 2019.4
-  - [ ] Install AR Foundation 2.1.18
+  - [ ] Install AR Foundation 4.1.30
   - [ ] Run validation - passes
   - [ ] Build succeeds
   
