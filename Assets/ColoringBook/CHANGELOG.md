@@ -5,6 +5,14 @@ All notable changes to Felina AR Coloring Book will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2024-06-XX
+
+### Changed
+- Minimum supported AR Foundation version is now 4.1.x (due to XRCpuImage and modern API requirements).
+- Minimum supported Unity version is now 2019.4 LTS.
+- Documentation, package manifest, and asmdefs updated to reflect new requirements.
+- Solver parameters (inlier threshold, max iterations, refine with LM) are now configured in the `Settings` asset (ScriptableObject) instead of on the ARScannerManager component. Update your project settings via the Settings asset in the Inspector.
+
 ## [1.0.0] - 2024-01-15
 
 ### ?? Initial Release
@@ -269,6 +277,7 @@ If you used pre-release versions (0.x.x), please contact support@felina.dev for 
 
 **Thank you for using Felina AR Coloring Book!** ??
 
-**Last Updated**: January 15, 2024  
-**Package Version**: 1.0.0  
-**Unity Support**: 2019.4 - 6.3+
+**Last Updated**: June XX, 2024  
+**Package Version**: 2.0.0  
+**Unity Support**: 2019.4 LTS - 6.3+
+**AR Foundation**: 4.1.x - 6.x

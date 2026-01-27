@@ -1,4 +1,3 @@
-using Felina.ARColoringBook.Bridges;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -26,7 +25,7 @@ namespace Felina.ARColoringBook.Runtime
         [SerializeField]
         private List<TargetData> _targetData = new List<TargetData>();
 
-        [Header("Shader Property Names")]
+        [Header( "Shader Property Names" )]
         [SerializeField] private string _baseMapProperty = "_BaseMap";
         [SerializeField] private string _mainTexProperty = "_MainTex";
         [SerializeField] private string _drawingTexProperty = "_DrawingTex";
@@ -53,16 +52,16 @@ namespace Felina.ARColoringBook.Runtime
                 Shader.PropertyToID(_mainTexProperty),
                 Shader.PropertyToID(_drawingTexProperty)
             };
-            _colorId = Shader.PropertyToID(_colorProperty);
-            _baseColorId = Shader.PropertyToID(_baseColorProperty);
-            _tintColorId = Shader.PropertyToID(_tintColorProperty);
+            _colorId = Shader.PropertyToID( _colorProperty );
+            _baseColorId = Shader.PropertyToID( _baseColorProperty );
+            _tintColorId = Shader.PropertyToID( _tintColorProperty );
             _propBlock = new MaterialPropertyBlock();
         }
 
         private void OnValidate()
         {
 #if UNITY_EDITOR
-if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
+            if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
             {
                 return;
             }
@@ -174,7 +173,7 @@ if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
             }
         }
 
-        private void UpdateModel(RenderTexture capturedTexture)
+        private void UpdateModel( RenderTexture capturedTexture )
         {
             if ( string.IsNullOrEmpty( _lastObjectId ) )
             {
@@ -225,7 +224,7 @@ if ( UnityEditor.BuildPipeline.isBuildingPlayer || Application.isPlaying )
                     break;
                 }
             }
-            
+
             if ( !textureSet )
             {
                 Debug.LogError( $"[ARContentSpawner] ? Material '{sharedMat.name}' has NONE of the candidate properties: _BaseMap, _MainTex, _DrawingTex!" );
@@ -286,7 +285,7 @@ TrackableProcessing(eventArgs.added, eventArgs.updated, eventArgs.removed);
 #else
         private void OnTrackedImagesChanged( ARTrackedImagesChangedEventArgs args )
         {
-            TrackableProcessing(args.added, args.updated, args.removed);
+            TrackableProcessing( args.added, args.updated, args.removed );
         }
 #endif
 

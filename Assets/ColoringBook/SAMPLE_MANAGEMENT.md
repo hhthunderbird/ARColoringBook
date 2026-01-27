@@ -22,11 +22,11 @@
 ```
 ?? Found 3 incompatible AR Foundation sample folder(s) for Unity 6000.3.0f1:
 
-?? Assets/Samples/AR Foundation/2.1.18/ImageTracking
-   AR Foundation 2.1.18
+?? Assets/Samples/AR Foundation/4.0.0/ImageTracking
+   AR Foundation 4.0.0
    
-?? Assets/Samples/AR Foundation/2.1.18/FaceTracking
-   AR Foundation 2.1.18
+?? Assets/Samples/AR Foundation/4.0.0/FaceTracking
+   AR Foundation 4.0.0
 ```
 
 **What to do:**
@@ -62,8 +62,8 @@ When you open your Unity project, the system:
 
 | Unity Version | Compatible AR Foundation Samples |
 |---------------|----------------------------------|
-| Unity 2019.4 - 2020.3 | AR Foundation 2.x - 4.x |
-| Unity 2021.x - 2022.x | AR Foundation 4.x - 5.x |
+| Unity 2019.4 - 2021.x | AR Foundation 4.x |
+| Unity 2022.x | AR Foundation 5.x |
 | Unity 2023.x, Unity 6.x+ | AR Foundation 6.x+ |
 
 ### Sample Detection Patterns
@@ -119,9 +119,9 @@ This forces a re-scan regardless of previous session state.
 
 ## Example Scenario
 
-### Problem: Unity 6.3 with AR Foundation 2.x Samples
+### Problem: Unity 6.3 with AR Foundation 4.x Samples
 
-You're using **Unity 6.3** but your project has old **AR Foundation 2.1.18 samples** imported from a previous Unity version. These samples use deprecated APIs and cause hundreds of compilation errors.
+You're using **Unity 6.3** but your project has old **AR Foundation 4.0.0 samples** imported from a previous Unity version. These samples use deprecated APIs and cause hundreds of compilation errors.
 
 ### Solution: Automatic Cleanup
 
@@ -130,14 +130,14 @@ You're using **Unity 6.3** but your project has old **AR Foundation 2.1.18 sampl
    ```
    Found 3 incompatible AR Foundation sample folder(s) for Unity 6000.3.0f1:
    
-   ? Assets/Samples/AR Foundation/2.1.18/ImageTracking
-      AR Foundation 2.1.18
+   ? Assets/Samples/AR Foundation/4.0.0/ImageTracking
+      AR Foundation 4.0.0
    
-   ? Assets/Samples/AR Foundation/2.1.18/FaceTracking
-      AR Foundation 2.1.18
+   ? Assets/Samples/AR Foundation/4.0.0/FaceTracking
+      AR Foundation 4.0.0
    
-   ? Assets/Samples/AR Foundation/2.1.18/PlaneDetection
-      AR Foundation 2.1.18
+   ? Assets/Samples/AR Foundation/4.0.0/PlaneDetection
+      AR Foundation 4.0.0
    
    These samples were designed for a different Unity version and may cause compilation errors.
    
@@ -159,7 +159,7 @@ Once incompatible samples are removed, you can safely import the correct ones:
 #### For Unity 2019.4:
 ```
 Window > Package Manager
-> AR Foundation (2.1.18)
+> AR Foundation (4.0.0)
 > Samples > Import
 ```
 
@@ -286,7 +286,7 @@ Felina > Clean AR Foundation Samples
 ### Detection Algorithm
 
 1. Scan `Assets/Samples/` for AR Foundation folders
-2. Parse version from path (e.g., `2.1.18`, `6.3.1`)
+2. Parse version from path (e.g., `4.0.0`, `6.3.1`)
 3. Compare major version with Unity compatibility matrix
 4. Flag incompatible versions
 
@@ -389,5 +389,3 @@ Project compiles successfully
 ---
 
 **With this system, you can confidently switch between Unity versions without worrying about sample file conflicts!** ??
-
-```

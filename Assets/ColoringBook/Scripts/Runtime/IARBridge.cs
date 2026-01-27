@@ -1,5 +1,4 @@
 ﻿using System;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.XR.ARSubsystems;
 
@@ -9,8 +8,8 @@ namespace Felina.ARColoringBook.Base
     public struct ScanTarget
     {
         public string Name;
-        public Vector2 Size; 
-        public Transform Transform; 
+        public Vector2 Size;
+        public Transform Transform;
         public float Score;
     }
 

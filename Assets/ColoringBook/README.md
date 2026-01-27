@@ -2,8 +2,8 @@
 
 **Transform physical coloring books into immersive AR experiences with professional-grade image tracking and texture capture.**
 
-[![Unity Version](https://img.shields.io/badge/Unity-2019.4%20--%206.3%2B-blue)](https://unity.com)
-[![AR Foundation](https://img.shields.io/badge/AR%20Foundation-2.x%20--%206.x-green)](https://docs.unity3d.com/Packages/com.unity.xr.arfoundation@latest)
+[![Unity Version](https://img.shields.io/badge/Unity-2019.4%2B--6.3%2B-blue)](https://unity.com)
+[![AR Foundation](https://img.shields.io/badge/AR%20Foundation-4.1.x%2B--6.x-green)](https://docs.unity3d.com/Packages/com.unity.xr.arfoundation@latest)
 [![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-orange)](https://unity.com)
 [![License](https://img.shields.io/badge/License-Commercial-red)](LICENSE.md)
 
@@ -50,7 +50,7 @@ Felina AR Coloring Book is a **production-ready Unity package** that enables dev
 ## ?? System Requirements
 
 ### Minimum Unity Versions
-- **Unity 2019.4** (with AR Foundation 2.x) - Legacy support
+- **Unity 2019.4 LTS** (with AR Foundation 4.1.x) - **Minimum Required**
 - **Unity 2020.3 LTS** (with AR Foundation 4.1.x)
 - **Unity 2021.3 LTS** (with AR Foundation 4.2.x)
 - **Unity 2022.3 LTS** (with AR Foundation 5.x) - **Recommended**
@@ -59,9 +59,9 @@ Felina AR Coloring Book is a **production-ready Unity package** that enables dev
 ### Required Packages
 | Package | Version | Purpose |
 |---------|---------|----------|
-| AR Foundation | 2.x - 6.x | Core AR framework (version-matched) |
-| ARKit XR Plugin | 2.x - 6.x | iOS support (version-matched) |
-| ARCore XR Plugin | 2.x - 6.x | Android support (version-matched) |
+| AR Foundation | 4.1.x - 6.x | Core AR framework (version-matched) |
+| ARKit XR Plugin | 4.1.x - 6.x | iOS support (version-matched) |
+| ARCore XR Plugin | 4.1.x - 6.x | Android support (version-matched) |
 | Unity Mathematics | 1.2.1+ | Math utilities |
 
 ### Target Devices
@@ -249,11 +249,11 @@ Check out **`Scenes/ARFoundationSample.unity`** for a working example with:
         ?????????????????????????????
         ?                           ?
         ?                           ?
-???????????????????   ???????????????????????
+?????????????????   ??????????????????????
 ? ARContentSpawner ?   ? ARPaintableObject ?
 ?                 ?   ?                   ?
 ? Spawns Prefabs  ?   ? Updates Materials ?
-????????????????????   ???????????????????????
+????????????????????   ??????????????????????
 ```
 
 ### Core Components Explained
@@ -363,6 +363,8 @@ public class MyCustomBridge : MonoBehaviour, IARBridge
 
 ### ARScannerManager Settings
 
+> **Note:** As of v1.0.1, solver parameters (inlier threshold, max iterations, refine with LM) are now configured in the `Settings` asset (ScriptableObject) and not directly on the ARScannerManager component.
+
 #### Output Resolution
 **What it does**: Size of the captured texture
 
@@ -389,7 +391,24 @@ _outputResolution = 1024;
 | **0.95-1.0** | Extremely strict, perfect shots only | Photography apps |
 
 ```csharp
-_captureThreshold = 0.85f;
+// Set in Settings asset:
+Settings.Instance.CAPTURE_THRESHOLD = 0.85f;
+```
+
+#### Solver Parameters (NEW)
+**What they do**: Control the homography solver's behavior
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| Inlier Threshold | RANSAC inlier threshold for solver | 4.0 |
+| Max Iterations | Maximum RANSAC iterations | 200 |
+| Refine With LM | Use Levenberg-Marquardt refinement | true |
+
+```csharp
+// Set in Settings asset:
+Settings.Instance.INLIER_THRESHOLD = 4.0f;
+Settings.Instance.MAX_ITERATIONS = 200;
+Settings.Instance.REFINE_WITH_LM = true;
 ```
 
 #### Auto Lock
@@ -407,10 +426,10 @@ _autoLock = true; // Lock after first good capture
 
 ```csharp
 // Maximum movement speed (units per second)
-_maxMoveSpeed = 0.05f;  // Lower = stricter
+Settings.Instance.MAX_MOVE_SPEED = 0.05f;  // Lower = stricter
 
 // Maximum rotation speed (degrees per second)  
-_maxRotateSpeed = 5.0f; // Lower = stricter
+Settings.Instance.MAX_ROTATE_SPEED = 5.0f; // Lower = stricter
 ```
 
 ### Performance Tuning Guide
@@ -752,7 +771,7 @@ void Start()
 2. Check console for warnings:
    ```
    "No prefab assigned for image (GUID: ...)"
-   ```
+
 3. Manually verify spawning:
    ```csharp
    void OnTrackablesChanged(ARTrackablesChangedEventArgs<ARTrackedImage> args)
@@ -780,7 +799,6 @@ void Start()
    - Standard Shader: `_MainTex`
    - URP Lit: `_BaseMap`
    - Custom shader: Check shader source
-   
 2. **Verify material index**:
    ```csharp
    // In ARPaintableObject or ARContentSpawner
@@ -1064,6 +1082,30 @@ public class MyCustomBridge : MonoBehaviour, IARBridge
 // Usually auto-configured, but can be accessed:
 var bridge = GetComponent<ARFoundationBridge>();
 Camera arCam = bridge.GetARCamera();
+```
+
+### ARScannerManager
+
+**Core component for scanning and capturing**
+
+```csharp
+public class ARScannerManager : MonoBehaviour
+{
+    // Configurable settings
+    [SerializeField] private int _outputResolution = 1024;
+    [SerializeField] private float _captureThreshold = 0.85f;
+    [SerializeField] private bool _autoLock = true;
+    
+    // Events
+    public event Action<string, RenderTexture, float> OnTextureCaptured;
+    
+    void Update()
+    {
+        // Scanning logic...
+    }
+    
+    public void ResetCapture() { /* ... */ }
+}
 ```
 
 ### ARContentSpawner
@@ -1722,14 +1764,8 @@ https://github.com/hhthunderbird/ARColoringBook
 
 ---
 
-**Version**: 1.0.0  
+**Version**: 2.0.0  
 **Unity Support**: 2019.4 - 6.3+  
-**AR Foundation**: 2.x - 6.x  
+**AR Foundation**: 4.1.x - 6.x  
 **Platforms**: iOS (ARKit), Android (ARCore)  
 **License**: Commercial  
-
----
-
-**?? Built with passion for AR developers worldwide**
-
-[Report Bug](https://github.com/hhthunderbird/ARColoringBook/issues/new?template=bug_report.md) · [Request Feature](https://github.com/hhthunderbird/ARColoringBook/issues/new?template=feature_request.md) · [View Documentation](INSTALLATION.md)

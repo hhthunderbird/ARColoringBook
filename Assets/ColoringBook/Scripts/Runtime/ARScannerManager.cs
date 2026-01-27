@@ -2,6 +2,7 @@
 using Felina.ARColoringBook.Base;
 using Felina.ARColoringBook.Bridges;
 using Felina.ARColoringBook.Events;
+using UnityEngine.XR.ARSubsystems;
 using System;
 using System.Threading;
 using Unity.Burst;
@@ -9,7 +10,6 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.XR.ARSubsystems;
 
 namespace Felina.ARColoringBook.Runtime
 {
@@ -28,14 +28,10 @@ namespace Felina.ARColoringBook.Runtime
 
         [SerializeField] private Material _material;
         [SerializeField] private int _outputSize = 1024;
-        [Header( "Solver" )]
-        [SerializeField] private float _inlierThreshold = 4f;
-        [SerializeField] private int _maxIterations = 200;
-        [SerializeField] private bool _refineWithLM = true;
         [Header( "UI Feedback" )]
         [SerializeField] private int _feedbackIntervalMs = 100;
 
-        [Header("Shader Property Names")]
+        [Header( "Shader Property Names" )]
         [SerializeField] private string _rotationTypeProperty = "_RotationType";
         [SerializeField] private string _rotationAngleProperty = "_RotationAngle";
         [SerializeField] private string _srcSizeProperty = "_SrcSize";
@@ -141,9 +137,9 @@ namespace Felina.ARColoringBook.Runtime
             int rotatedHeight = 0;
             float rotationAngleRad = 0;
 
-            if ( img == null || !img.Value.valid || _target.Transform == null ) return;
+            if ( img.HasValue || !img.Value.valid || _target.Transform == null ) return;
 
-            using ( img )
+            using ( img.Value )
             {
                 GetCpuImageTransform( img.Value, out rotatedWidth, out rotatedHeight, out rotationAngleRad );
 
@@ -157,9 +153,9 @@ namespace Felina.ARColoringBook.Runtime
 
             Solver.Solve(
                 imagePoints,
-                inlierThreshold: _inlierThreshold,
-                maxIterations: _maxIterations,
-                refineWithLM: _refineWithLM,
+                inlierThreshold: Settings.Instance.INLIER_THRESHOLD,
+                maxIterations: Settings.Instance.MAX_ITERATIONS,
+                refineWithLM: Settings.Instance.REFINE_WITH_LM,
                 _outputSize,
                 out float[] finalH,
                 out float[] finalHinv
@@ -171,8 +167,6 @@ namespace Felina.ARColoringBook.Runtime
 
             OnTextureCaptured?.Invoke( _dstRT );
         }
-
-        // ==================== ORIENTATION HANDLING METHODS ====================
 
         private void GetCpuImageTransform( XRCpuImage cpuImage, out int rotatedWidth, out int rotatedHeight, out float rotationAngleRad )
         {
@@ -266,12 +260,8 @@ namespace Felina.ARColoringBook.Runtime
 
             img.Convert( conv, buffer );
 
-            var tex = new Texture2D(
-                conv.outputDimensions.x,
-                conv.outputDimensions.y,
-                conv.outputFormat,
-                false
-            );
+            
+            var tex = new Texture2D( conv.outputDimensions.x, conv.outputDimensions.y, conv.outputFormat, false);
 
             tex.LoadRawTextureData( buffer );
             tex.Apply();
@@ -437,10 +427,10 @@ namespace Felina.ARColoringBook.Runtime
 
             float3[] local =
             {
-                new(-s, 0,  s),
-                new( s, 0,  s),
-                new( s, 0, -s),
-                new(-s, 0, -s)
+                new float3(-s, 0,  s),
+                new float3( s, 0,  s),
+                new float3( s, 0, -s),
+                new float3(-s, 0, -s)
             };
 
             float3[] world = new float3[ 4 ];

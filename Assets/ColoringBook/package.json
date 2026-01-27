@@ -1,10 +1,10 @@
 {
   "name": "com.felina.arcoloringbook",
-  "version": "1.0.0",
-  "displayName": "Felina AR Coloring Book",
-  "description": "Professional AR image tracking and texture capture system for Unity. Transform physical images into interactive AR experiences with GPU-accelerated homography unwarp, quality-based capture, and multi-version support (Unity 2019.4-6.3+). Perfect for coloring books, educational apps, AR games, and interactive marketing. Supports ARFoundation 2.x through 6.x with automatic version detection. Includes native C++ performance, device stability detection, and easy drag-and-drop setup.",
-  "unity": "2019.4",
-  "unityRelease": "41f1",
+  "version": "2.0.0",
+  "displayName": "AR Coloring Book",
+  "description": "Professional AR image tracking and texture capture system for Unity. Transform physical images into interactive AR experiences with GPU-accelerated homography unwarp, quality-based capture, and multi-version support (Unity 2020.3-6.3+). Perfect for coloring books, educational apps, AR games, and interactive marketing. Supports ARFoundation 4.x through 6.x with automatic version detection. Includes native C++ performance, device stability detection, and easy drag-and-drop setup.",
+  "unity": "2020.3",
+  "unityRelease": "0f1",
   "keywords": [
     "AR",
     "VR",
@@ -25,7 +25,8 @@
     "Real-time",
     "Quality Detection",
     "Multi-Version",
-    "Production-Ready"
+    "Production-Ready",
+    "ARFoundation4.x+"
   ],
   "author": {
     "name": "Felina Studios",

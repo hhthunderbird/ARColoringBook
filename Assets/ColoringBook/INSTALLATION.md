@@ -102,10 +102,10 @@ Felina > Validate Package Setup
 
 | Unity Version | AR Foundation | ARKit/ARCore Plugin |
 |---------------|---------------|---------------------|
-| 2019.4 | 2.1.18 | 2.1.18 (ARKit) / 2.1.23 (ARCore) |
+| 2019.4 LTS | 4.1.13 | 4.1.13 |
 | 2020.3 LTS | 4.1.13 | 4.1.13 |
 | 2021.3 LTS | 4.2.10 | 4.2.10 |
-| **2022.3 LTS** | **5.1.5** | **5.1.5** ? |
+| 2022.3 LTS | 5.1.5 | 5.1.5 |
 | 2023.x / 6.x | 6.0.0+ | 6.0.0+ |
 
 ? **Done?** Jump to [Post-Installation Verification](#-post-installation-verification)
@@ -129,11 +129,11 @@ This package is designed to work across multiple Unity versions with automatic v
 
 ### Step 2: Install AR Foundation (Version-Specific)
 
-#### For Unity 2019.4:
+#### For Unity 2019.4 LTS:
 ```
-- com.unity.xr.arfoundation: 2.1.18
-- com.unity.xr.arkit: 2.1.18 (iOS)
-- com.unity.xr.arcore: 2.1.23 (Android)
+- com.unity.xr.arfoundation: 4.1.13
+- com.unity.xr.arkit: 4.1.13 (iOS)
+- com.unity.xr.arcore: 4.1.13 (Android)
 ```
 
 #### For Unity 2020.3 LTS:
@@ -195,9 +195,9 @@ After importing, run the setup validator:
 ### Unity 2019.4 Specifics
 
 **Required Packages:**
-- AR Foundation 2.1.x
-- ARKit XR Plugin 2.1.x (iOS)
-- ARCore XR Plugin 2.1.x (Android)
+- AR Foundation 4.1.x
+- ARKit XR Plugin 4.1.x (iOS)
+- ARCore XR Plugin 4.1.x (Android)
 - Unity Mathematics 1.2.1+
 
 **Platform Setup:**
@@ -375,6 +375,21 @@ If you encounter issues:
 
 ---
 
-**Package Version**: 1.0.0  
-**Unity Support**: 2019.4.41 - 6.3+  
-**AR Foundation**: 2.x - 6.x (auto-detected)
+**Package Version**: 2.0.0  
+**Unity Support**: 2019.4 LTS - 6.3+  
+**AR Foundation**: 4.1.x - 6.x (auto-detected)
+
+## Post-Installation Setup
+
+**Note:** As of v1.0.1, solver parameters (inlier threshold, max iterations, refine with LM) are now configured in the `Settings` asset (ScriptableObject) found in the project. Adjust these in the Inspector as needed for your use case.
+
+**Automatic Validation** (Recommended):
+```
+Felina > Validate Package Setup
+```
+This tool will:
+- ? Detect your Unity version
+- ? Check AR Foundation installation
+- ? Verify platform plugins
+- ? Provide version-specific recommendations
+- ? Show fix instructions for any issues

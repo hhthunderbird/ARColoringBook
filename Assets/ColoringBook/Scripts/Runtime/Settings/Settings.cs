@@ -63,6 +63,16 @@ namespace Felina.ARColoringBook
         private bool _urpCompatible = false;
         public bool IsURPCompatible => _urpCompatible;
 
+        [Header("Solver Parameters")]
+        [SerializeField] private float _inlierThreshold = 4f;
+        public float INLIER_THRESHOLD => _inlierThreshold;
+
+        [SerializeField] private int _maxIterations = 200;
+        public int MAX_ITERATIONS => _maxIterations;
+
+        [SerializeField] private bool _refineWithLM = true;
+        public bool REFINE_WITH_LM => _refineWithLM;
+
         private void OnEnable() => _instance = this;
 
 #if UNITY_EDITOR
