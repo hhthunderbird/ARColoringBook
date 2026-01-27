@@ -6,12 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/ColouringBook/Scenes/ARFoundationSample.unity
+    path: Assets/ColoringBook/Scenes/ARFoundationSample.unity
     guid: d97bfd586cf099d45a925f115b95aa4e
   m_configObjects:
     com.unity.xr.arcore.PlayerSettings: {fileID: 11400000, guid: 481c80eca857e3f45b985d45628303ae,
       type: 2}
     com.unity.xr.arkit.PlayerSettings: {fileID: 11400000, guid: 20b95e6111dd69942b990617717c40f1,
       type: 2}
-    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 9dbbcc4ef5e754cba807b53e35f3c708,
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 86119007f30d3c8408b0d8aad04e0f06,
       type: 2}
