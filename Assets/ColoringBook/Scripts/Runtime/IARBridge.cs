@@ -1,6 +1,7 @@
 ﻿using System;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.XR.ARSubsystems;
 
 namespace Felina.ARColoringBook.Base
 {
@@ -27,13 +28,10 @@ namespace Felina.ARColoringBook.Base
     {
         event Action<ScanTarget> OnTargetAdded;
 
-        void SetTargetRenderTexture( RenderTexture targetRT );
-        void UpdateCameraRT();
-
         Camera GetARCamera();
 
-        RenderTexture MasterCameraFeed { get; }
+        XRCameraIntrinsics? GetCameraIntrinsics();
 
-        string GetImageName( Guid guid );
+        XRCpuImage? GetXRCpuImage();
     }
 }

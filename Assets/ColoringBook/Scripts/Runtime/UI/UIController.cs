@@ -20,6 +20,9 @@ namespace Felina.ARColoringBook.Events
         [SerializeField] private Color _colorBadAngle = Color.yellow;
         [SerializeField] private Color _colorReady = Color.green;
 
+        [Header( "Thresholds" )]
+        [SerializeField] private float _readyThreshold = 0.95f;
+
         public event Action OnCapture;
 
         private void Awake()
@@ -47,7 +50,7 @@ namespace Felina.ARColoringBook.Events
             {
                 _reticleImage.color = _colorUnstable;
             }
-            else if ( evt.QualityScore < 0.95f )
+            else if ( evt.QualityScore < _readyThreshold )
             {
                 _reticleImage.color = _colorBadAngle;
             }
