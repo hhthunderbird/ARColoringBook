@@ -2,8 +2,8 @@
   "name": "com.felina.arcoloringbook",
   "version": "2.0.0",
   "displayName": "AR Coloring Book",
-  "description": "Professional AR image tracking and texture capture system for Unity. Transform physical images into interactive AR experiences with GPU-accelerated homography unwarp, quality-based capture, and multi-version support (Unity 2020.3-6.3+). Perfect for coloring books, educational apps, AR games, and interactive marketing. Supports ARFoundation 4.x through 6.x with automatic version detection. Includes native C++ performance, device stability detection, and easy drag-and-drop setup.",
-  "unity": "2020.3",
+  "description": "Toolkit for Unity AR Foundation projects: real-time texture capture, prefab spawning, and material updates. Not an image tracking system. Includes setup wizard and AR Foundation integration. Supports Unity 2019.4+ and AR Foundation 4.x+.",
+  "unity": "2019.4",
   "unityRelease": "0f1",
   "keywords": [
     "AR",
@@ -30,8 +30,7 @@
   ],
   "author": {
     "name": "Felina Studios",
-    "email": "raul.nascimento.dev@gmail.com",
-    "url": "https://github.com/hhthunderbird/ARColoringBook"
+    "email": "raul.nascimento.dev@gmail.com"
   },
   "dependencies": {
     "com.unity.mathematics": "1.2.1"
@@ -39,17 +38,13 @@
   "samples": [
     {
       "displayName": "AR Foundation Sample Scene",
-      "description": "Complete example scene demonstrating AR image tracking, content spawning, and real-time texture capture. Includes pre-configured scanner, sample reference images, 3D content prefabs, and material setup. Perfect starting point for learning the system.",
+      "description": "Sample scene demonstrating the Scene Setup Wizard (Window > Coloring Book > Scene Setup Wizard). Use this tool to configure your AR Foundation scene. Does not include a pre-configured AR workflow.",
       "path": "Scenes/ARFoundationSample.unity"
     }
   ],
   "category": "AR/VR/XR",
   "license": "SEE LICENSE.md",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/hhthunderbird/ARColoringBook"
-  },
-  "documentationUrl": "https://github.com/hhthunderbird/ARColoringBook/blob/main/Assets/ColouringBook/README.md",
-  "changelogUrl": "https://github.com/hhthunderbird/ARColoringBook/blob/main/Assets/ColouringBook/CHANGELOG.md",
-  "licensesUrl": "https://github.com/hhthunderbird/ARColoringBook/blob/main/Assets/ColouringBook/LICENSE.md"
+  "documentationUrl": "Assets/ColoringBook/README.md",
+  "changelogUrl": "Assets/ColoringBook/CHANGELOG.md",
+  "licensesUrl": "Assets/ColoringBook/LICENSE.md"
 }
