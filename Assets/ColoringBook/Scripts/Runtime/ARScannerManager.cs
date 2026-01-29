@@ -13,29 +13,22 @@ using UnityEngine;
 
 namespace Felina.ARColoringBook.Runtime
 {
-    [Serializable]
-    public struct ReferencePair
-    {
-        public string ReferenceName;
-        public Texture2D OriginalTexture;
-    }
-
     public class ARScannerManager : MonoBehaviour
     {
         public static ARScannerManager Instance { get; private set; }
 
         public event Action<RenderTexture> OnTextureCaptured;
 
-        [SerializeField] private Material _material;
+        [SerializeField] private Material _rotationMaterial;
         [SerializeField] private int _outputSize = 1024;
         [Header( "UI Feedback" )]
         [SerializeField] private int _feedbackIntervalMs = 100;
 
         [Header( "Shader Property Names" )]
-        [SerializeField] private string _rotationTypeProperty = "_RotationType";
-        [SerializeField] private string _rotationAngleProperty = "_RotationAngle";
-        [SerializeField] private string _srcSizeProperty = "_SrcSize";
-        [SerializeField] private string _dstSizeProperty = "_DstSize";
+        private readonly string _rotationTypeProperty = "_RotationType";
+        private readonly string _rotationAngleProperty = "_RotationAngle";
+        private readonly string _srcSizeProperty = "_SrcSize";
+        private readonly string _dstSizeProperty = "_DstSize";
 
         private int _rotationTypeId;
         private int _rotationAngleId;
@@ -260,8 +253,8 @@ namespace Felina.ARColoringBook.Runtime
 
             img.Convert( conv, buffer );
 
-            
-            var tex = new Texture2D( conv.outputDimensions.x, conv.outputDimensions.y, conv.outputFormat, false);
+
+            var tex = new Texture2D( conv.outputDimensions.x, conv.outputDimensions.y, conv.outputFormat, false );
 
             tex.LoadRawTextureData( buffer );
             tex.Apply();
@@ -281,8 +274,6 @@ namespace Felina.ARColoringBook.Runtime
             Destroy( tex );
             return rotatedTex;
         }
-
-
 
         private void ApplyRotation( RenderTexture dstTexture, Texture2D srcTexture, float rotationAngleRad )
         {
@@ -317,18 +308,18 @@ namespace Felina.ARColoringBook.Runtime
             }
 
             // Set shader properties using configurable property names
-            _material.SetInt( _rotationTypeId, rotationType );
-            _material.SetFloat( _rotationAngleId, rotationAngleRad );
-            _material.SetVector( _srcSizeId, new Vector4( srcWidth, srcHeight, 0, 0 ) );
-            _material.SetVector( _dstSizeId, new Vector4( dstWidth, dstHeight, 0, 0 ) );
+            _rotationMaterial.SetInt( _rotationTypeId, rotationType );
+            _rotationMaterial.SetFloat( _rotationAngleId, rotationAngleRad );
+            _rotationMaterial.SetVector( _srcSizeId, new Vector4( srcWidth, srcHeight, 0, 0 ) );
+            _rotationMaterial.SetVector( _dstSizeId, new Vector4( dstWidth, dstHeight, 0, 0 ) );
 
             srcTexture.filterMode = FilterMode.Point;
-            _material.mainTexture = srcTexture;
+            _rotationMaterial.mainTexture = srcTexture;
 
-            Graphics.Blit( srcTexture, dstTexture, _material );
+            Graphics.Blit( srcTexture, dstTexture, _rotationMaterial );
         }
 
-
+        //TODO: port to shader or to cpp
         public void WarpPerspective( Texture2D src, float[] Hinv )
         {
             if ( src.width == 0 || src.height == 0 || _cpuOutputTex.width == 0 || _cpuOutputTex.height == 0 )
@@ -641,14 +632,14 @@ namespace Felina.ARColoringBook.Runtime
             }
         }
     }
-}
-
-public static class mathx
-{
-    public const float EPSILON = 1E-05f;
-
-    public static bool approximately( float a, float b )
+    public static class mathx
     {
-        return math.abs( a - b ) < EPSILON;
+        public const float EPSILON = 1E-05f;
+
+        public static bool approximately( float a, float b )
+        {
+            return math.abs( a - b ) < EPSILON;
+        }
     }
 }
+

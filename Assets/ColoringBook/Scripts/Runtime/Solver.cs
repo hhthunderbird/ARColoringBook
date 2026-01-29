@@ -7,7 +7,6 @@ namespace Felina.ARColoringBook.Runtime
     {
         private const string LIB_NAME = "InternalSolver";
 
-        // Native function declaration
         [DllImport( LIB_NAME )]
         private static extern void HomographySolver_Solve(
             float[] srcPts, int srcCount,
@@ -16,7 +15,6 @@ namespace Felina.ARColoringBook.Runtime
             float[] outH, float[] outHinv
         );
 
-        // Public wrapper
         public static void Solve(
             float2[] srcPts,
             float inlierThreshold,
@@ -37,7 +35,6 @@ namespace Felina.ARColoringBook.Runtime
             float[] hRaw = new float[ 9 ];
             float[] hInvRaw = new float[ 9 ];
 
-            // Call C++
             HomographySolver_Solve(
                 flatSrc, count,
                 inlierThreshold, maxIterations, refineWithLM,
