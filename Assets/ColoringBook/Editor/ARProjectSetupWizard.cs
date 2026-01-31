@@ -8,6 +8,9 @@ using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 using UnityEditor.SceneManagement;
 using UnityEngine.SpatialTracking;
+using Felina.ARColoringBook.DI;
+using System.Reflection;
+using UnityEngine.XR.ARFoundation;
 
 namespace Felina.ARColoringBook.Editor
 {
@@ -85,7 +88,7 @@ namespace Felina.ARColoringBook.Editor
         private void DetermineRecommendations()
         {
             int year = int.Parse( _unityVersionMajor );
-            if ( year <= 2019 ) _recommendedArVersion = "2.1.18";
+            if ( year <= 2019 ) _recommendedArVersion = "4.1.13";
             else if ( year == 2020 ) _recommendedArVersion = "4.1.13";
             else if ( year == 2021 ) _recommendedArVersion = "4.2.10";
             else if ( year == 2022 ) _recommendedArVersion = "5.1.5";
@@ -96,94 +99,215 @@ namespace Felina.ARColoringBook.Editor
         {
             try
             {
-                var newScene = EditorSceneManager.NewScene( NewSceneSetup.EmptyScene, NewSceneMode.Single );
+                var newScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 newScene.name = "AR_ImageTracking_Auto";
 
-                GameObject sessionGO = new GameObject( "AR Session" );
-                AttachComponentSafe( sessionGO, "UnityEngine.XR.ARFoundation.ARSession" );
-                AttachComponentSafe( sessionGO, "UnityEngine.XR.ARFoundation.ARInputManager" );
+                GameObject sessionGO = new GameObject("AR Session");
+                AttachComponentSafe(sessionGO, "UnityEngine.XR.ARFoundation.ARSession");
+                AttachComponentSafe(sessionGO, "UnityEngine.XR.ARFoundation.ARInputManager");
 
-                GameObject cameraGO = new GameObject( "Main Camera" );
+                GameObject cameraGO = new GameObject("Main Camera");
                 cameraGO.tag = "MainCamera";
                 Camera cam = cameraGO.AddComponent<Camera>();
+                cam.nearClipPlane = 0.01f;
+                var cameraManager = AttachComponentSafe(cameraGO, "UnityEngine.XR.ARFoundation.ARCameraManager") as ARCameraManager;
+                cameraManager.imageStabilizationRequested = true;
+                AttachComponentSafe(cameraGO, "UnityEngine.XR.ARFoundation.ARCameraBackground");
+                var trackedPoseDriver = AttachComponentSafe(cameraGO, "UnityEngine.SpatialTracking.TrackedPoseDriver") as TrackedPoseDriver;
+                if (trackedPoseDriver != null)
+                {
+                    trackedPoseDriver.SetPoseSource(TrackedPoseDriver.DeviceType.GenericXRDevice, TrackedPoseDriver.TrackedPose.ColorCamera);
+                    trackedPoseDriver.UseRelativeTransform = true;
+                }
 
+                GameObject managersGO = new GameObject("AR Managers");
+                var scanner = AttachComponentSafe(managersGO, "ARScannerManager");
+                var bridge = AttachComponentSafe(managersGO, "ARFoundationBridge");
+
+                // XR Origin and ARContentSpawner
                 GameObject originGO = null;
-
+                Component trackedImageManager = null;
+                Component contentSpawner = null;
 #if UNITY_2021_2_OR_NEWER
                 Debug.Log("Creating Modern AR Setup (XROrigin)...");
                 Type xrOriginType = GetTypeSafe("Unity.XR.CoreUtils.XROrigin");
                 if (xrOriginType == null) xrOriginType = GetTypeSafe("UnityEngine.XR.CoreUtils.XROrigin");
-
                 if (xrOriginType != null)
                 {
                     originGO = new GameObject("XR Origin");
                     var originComp = originGO.AddComponent(xrOriginType);
-                    
                     GameObject offsetGO = new GameObject("Camera Offset");
                     offsetGO.transform.SetParent(originGO.transform, false);
                     cameraGO.transform.SetParent(offsetGO.transform, false);
-                    
                     var camProp = xrOriginType.GetProperty("Camera");
                     if (camProp != null) camProp.SetValue(originComp, cam);
-                    
                     var offsetProp = xrOriginType.GetProperty("CameraFloorOffsetObject");
                     if (offsetProp != null) offsetProp.SetValue(originComp, offsetGO);
+                    trackedImageManager = AttachComponentSafe(originGO, "UnityEngine.XR.ARFoundation.ARTrackedImageManager");
+                    contentSpawner = AttachComponentSafe(originGO, "ARContentSpawner");
                 }
 #else
-                Debug.Log( "Creating Legacy AR Setup (ARSessionOrigin)..." );
-                originGO = new GameObject( "AR Session Origin" );
-                AttachComponentSafe( originGO, "UnityEngine.XR.ARFoundation.ARSessionOrigin" );
-                cameraGO.transform.SetParent( originGO.transform, false );
+                Debug.Log("Creating Legacy AR Setup (ARSessionOrigin)...");
+                originGO = new GameObject("AR Session Origin");
+                AttachComponentSafe(originGO, "UnityEngine.XR.ARFoundation.ARSessionOrigin");
+                cameraGO.transform.SetParent(originGO.transform, false);
+                trackedImageManager = AttachComponentSafe(originGO, "UnityEngine.XR.ARFoundation.ARTrackedImageManager");
+                contentSpawner = AttachComponentSafe(originGO, "ARContentSpawner");
 #endif
-
-                cam.clearFlags = CameraClearFlags.SolidColor;
-                cam.backgroundColor = Color.black;
-                cam.nearClipPlane = 0.1f;
-                cam.farClipPlane = 20f;
-
-                AttachComponentSafe( cameraGO, "UnityEngine.XR.ARFoundation.ARCameraManager" );
-                AttachComponentSafe( cameraGO, "UnityEngine.XR.ARFoundation.ARCameraBackground" );
-                var trackedPoseDriver = AttachComponentSafe( cameraGO, "UnityEngine.SpatialTracking.TrackedPoseDriver" ) as TrackedPoseDriver;
-                trackedPoseDriver.SetPoseSource( TrackedPoseDriver.DeviceType.GenericXRDevice, TrackedPoseDriver.TrackedPose.ColorCamera );
-                trackedPoseDriver.UseRelativeTransform = true;
-
-                if ( originGO != null )
+                
+                if (trackedImageManager != null && _userReferenceLibrary != null)
                 {
-                    var tracker = AttachComponentSafe( originGO, "UnityEngine.XR.ARFoundation.ARTrackedImageManager" );
-                    AttachComponentSafe( originGO, "ARContentSpawner" );
+                    SerializedObject so = new SerializedObject(trackedImageManager);
+                    so.Update();
+                    SerializedProperty libProp = so.FindProperty("m_SerializedLibrary"); //m_SerializedLibrary
+                    if (libProp == null) libProp = so.FindProperty("m_ReferenceLibrary");
+                    if (libProp != null) libProp.objectReferenceValue = _userReferenceLibrary;
+                    SerializedProperty maxProp = so.FindProperty("m_MaxNumberOfMovingImages");
+                    if (maxProp != null) maxProp.intValue = 4;
+                    so.ApplyModifiedProperties();
+                }
 
-                    if ( tracker != null && _userReferenceLibrary != null )
+                if ( contentSpawner != null )
+                {
+                    GameObject truckPrefab = null;
+                    Texture2D outlineTex = null;
+
+                    var truckGuids = AssetDatabase.FindAssets( "truck t:Prefab" );
+                    if ( truckGuids.Length > 0 )
+                        truckPrefab = AssetDatabase.LoadAssetAtPath<GameObject>( AssetDatabase.GUIDToAssetPath( truckGuids[ 0 ] ) );
+
+                    var texGuids = AssetDatabase.FindAssets( "delivery-outline t:Texture2D" );
+                    if ( texGuids.Length > 0 )
+                        outlineTex = AssetDatabase.LoadAssetAtPath<Texture2D>( AssetDatabase.GUIDToAssetPath( texGuids[ 0 ] ) );
+
+                    var targetDataField = contentSpawner.GetType().GetField( "_targetData", BindingFlags.NonPublic | BindingFlags.Instance );
+                    if ( targetDataField != null )
                     {
-                        SerializedObject so = new SerializedObject( tracker );
-                        so.Update();
+                        var spawnerOnValidate = contentSpawner.GetType().GetMethod( "OnValidate", BindingFlags.NonPublic | BindingFlags.Instance );
+                        spawnerOnValidate?.Invoke( contentSpawner, null );
 
-                        SerializedProperty libProp = so.FindProperty( "m_SerializedLibrary" );
-                        if ( libProp == null ) libProp = so.FindProperty( "m_ReferenceLibrary" );
+                        var targetList = ( System.Collections.IList ) targetDataField.GetValue( contentSpawner );
 
-                        if ( libProp != null ) libProp.objectReferenceValue = _userReferenceLibrary;
+                        for ( int i = 0; i < targetList.Count; i++ )
+                        {
+                            var data = targetList[ i ];
+                            var nameField = data.GetType().GetField( "name" );
+                            string entryName = ( string ) nameField?.GetValue( data );
 
-                        SerializedProperty maxProp = so.FindProperty( "m_MaxNumberOfMovingImages" );
-                        if ( maxProp != null ) maxProp.intValue = 4;
+                            if ( entryName != null && ( entryName.ToLower().Contains( "truck" ) || entryName.ToLower().Contains( "delivery" ) ) )
+                            {
+                                var prefabField = data.GetType().GetField( "prefab" );
+                                var markerField = data.GetType().GetField( "blankMarker" );
 
-                        so.ApplyModifiedProperties();
+                                prefabField?.SetValue( data, truckPrefab );
+                                markerField?.SetValue( data, outlineTex );
+
+                                targetList[ i ] = data;
+                                Debug.Log( $"[Wizard] Assigned assets to TargetData: {entryName}" );
+                            }
+                        }
+                    }
+                    EditorUtility.SetDirty( contentSpawner );
+                }
+
+                GameObject lightGO = new GameObject("Directional Light");
+                Light light = lightGO.AddComponent<Light>();
+                light.type = LightType.Directional;
+                lightGO.transform.rotation = Quaternion.Euler(50, -30, 0);
+
+                // --- MONOCONTAINER SETUP ---
+                GameObject containerGO = new GameObject("MonoContainer");
+                var monoContainer = containerGO.AddComponent<MonoContainer>();
+                // Assign dependants
+                var dependantsField = typeof(MonoContainer).GetField("_dependants", BindingFlags.NonPublic | BindingFlags.Instance);
+                var dependantsList = new List<MonoBehaviour>();
+                if (bridge is MonoBehaviour) dependantsList.Add((MonoBehaviour)bridge);
+                if (scanner is MonoBehaviour) dependantsList.Add((MonoBehaviour)scanner);
+                if (contentSpawner is MonoBehaviour) dependantsList.Add((MonoBehaviour)contentSpawner);
+                dependantsField?.SetValue(monoContainer, dependantsList);
+                var onValidateMethod = typeof(MonoContainer).GetMethod("OnValidate", BindingFlags.Instance | BindingFlags.NonPublic);
+                onValidateMethod?.Invoke(monoContainer, null);
+                AssetDatabase.SaveAssets();
+
+                // --- UI CANVAS SETUP ---
+                GameObject canvasGO = new GameObject("Canvas");
+                var canvas = canvasGO.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvasGO.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+                var scaler = canvasGO.AddComponent<UnityEngine.UI.CanvasScaler>();
+                scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1080, 1920);
+
+                // Button
+                GameObject buttonGO = new GameObject("CaptureButton");
+                buttonGO.transform.SetParent(canvasGO.transform, false);
+                var buttonRect = buttonGO.AddComponent<RectTransform>();
+                buttonRect.anchorMin = new Vector2(0.5f, 0);
+                buttonRect.anchorMax = new Vector2(0.5f, 0);
+                buttonRect.anchoredPosition = new Vector2(0, 150);
+                buttonRect.sizeDelta = new Vector2(400, 120);
+                var buttonImage = buttonGO.AddComponent<UnityEngine.UI.Image>();
+                var button = buttonGO.AddComponent<UnityEngine.UI.Button>();
+
+                // Semaphore Image
+                GameObject semGO = new GameObject("StabilitySemaphore");
+                semGO.transform.SetParent(canvasGO.transform, false);
+                var semRect = semGO.AddComponent<RectTransform>();
+                semRect.anchorMin = new Vector2(0.5f, 1);
+                semRect.anchorMax = new Vector2(0.5f, 1);
+                semRect.anchoredPosition = new Vector2(0, -150);
+                semRect.sizeDelta = new Vector2(100, 100);
+                var semImage = semGO.AddComponent<UnityEngine.UI.Image>();
+
+                // UIController
+                var uiController = canvasGO.AddComponent<UIController>();
+                // Try to assign fields by reflection
+                var btnField = typeof(UIController).GetField("_captureButton", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (btnField != null) btnField.SetValue(uiController, button);
+                var semField = typeof(UIController).GetField("_reticleImage", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (semField != null) semField.SetValue(uiController, semImage);
+                EditorUtility.SetDirty(uiController);
+                AssetDatabase.SaveAssets();
+
+                // --- EVENT SYSTEM SETUP ---
+                // Required for UI interactions like the Capture Button
+                GameObject eventSystemGO = new GameObject( "EventSystem" );
+                eventSystemGO.AddComponent<UnityEngine.EventSystems.EventSystem>();
+
+                // Check for New Input System vs Legacy Input Manager
+                Type inputModuleType = GetTypeSafe( "UnityEngine.InputSystem.UI.InputSystemUIInputModule" );
+                if ( inputModuleType != null )
+                {
+                    eventSystemGO.AddComponent( inputModuleType );
+                }
+                else
+                {
+                    eventSystemGO.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                }
+
+                // Set RotationMaterial on ARScannerManager if found
+                if (scanner != null)
+                {
+                    var matGuids = AssetDatabase.FindAssets("t:Material RotationMaterial");
+                    if (matGuids.Length > 0)
+                    {
+                        var matPath = AssetDatabase.GUIDToAssetPath(matGuids[0]);
+                        var rotationMat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+                        var rotMatField = scanner.GetType().GetField("_rotationMaterial", BindingFlags.NonPublic | BindingFlags.Instance);
+                        if (rotMatField != null)
+                        {
+                            rotMatField.SetValue(scanner, rotationMat);
+                            EditorUtility.SetDirty(scanner);
+                        }
                     }
                 }
 
-                GameObject lightGO = new GameObject( "Directional Light" );
-                Light light = lightGO.AddComponent<Light>();
-                light.type = LightType.Directional;
-                lightGO.transform.rotation = Quaternion.Euler( 50, -30, 0 );
-
-                GameObject managersGO = new GameObject( "AR Managers" );
-                AttachComponentSafe( managersGO, "ARScannerManager" );
-                AttachComponentSafe( managersGO, "ARFoundationBridge" );
-
-                EditorUtility.DisplayDialog( "Success", "AR Scene generated successfully!", "OK" );
+                EditorUtility.DisplayDialog("Success", "AR Scene generated successfully!", "OK");
             }
-            catch ( Exception e )
+            catch (Exception e)
             {
-                Debug.LogError( $"Error creating scene: {e}" );
-                EditorUtility.DisplayDialog( "Error", "Failed to generate scene. Check console.", "OK" );
+                Debug.LogError($"Error creating scene: {e}");
+                EditorUtility.DisplayDialog("Error", "Failed to generate scene. Check console.", "OK");
                 GUIUtility.ExitGUI();
             }
         }
