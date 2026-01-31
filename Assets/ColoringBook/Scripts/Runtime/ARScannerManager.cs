@@ -10,19 +10,21 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using Felina.ARColoringBook.DI;
 
 namespace Felina.ARColoringBook.Runtime
 {
     public class ARScannerManager : MonoBehaviour
     {
-        public static ARScannerManager Instance { get; private set; }
-
         public event Action<RenderTexture> OnTextureCaptured;
 
         [SerializeField] private Material _rotationMaterial;
         [SerializeField] private int _outputSize = 1024;
         [Header( "UI Feedback" )]
         [SerializeField] private int _feedbackIntervalMs = 100;
+
+        [Header( "Dependencies" )]
+        [Inject] private ARFoundationBridge _arFoundationBridge;
 
         [Header( "Shader Property Names" )]
         private readonly string _rotationTypeProperty = "_RotationType";
@@ -48,10 +50,6 @@ namespace Felina.ARColoringBook.Runtime
 
         private void Awake()
         {
-            if ( Instance != null ) Destroy( Instance );
-            Instance = this;
-
-            // Cache property IDs for performance
             _rotationTypeId = Shader.PropertyToID( _rotationTypeProperty );
             _rotationAngleId = Shader.PropertyToID( _rotationAngleProperty );
             _srcSizeId = Shader.PropertyToID( _srcSizeProperty );
@@ -62,38 +60,28 @@ namespace Felina.ARColoringBook.Runtime
         {
             _currentScreenOrientation = Screen.orientation;
 
-            StartTask().Forget();
-        }
-
-        private void Update() => _currentScreenOrientation = Screen.orientation;
-
-
-        private async UniTaskVoid StartTask()
-        {
 #if UNITY_2023_1_OR_NEWER
             var ui = FindFirstObjectByType<UIController>();
 #else
             var ui = FindObjectOfType<UIController>();
 #endif
             if ( ui )
-                ui.OnCapture += ProcessRT;
+                ui.OnCapture += ProcessCaptureCPU;
 
             _dstRT = CreateRT( _outputSize, _outputSize );
 
-            await UniTask.WaitUntil( () => ARFoundationBridge.Instance != null );
-
-            ARFoundationBridge.Instance.OnTargetAdded += OnTargetAdded;
+            _arFoundationBridge.OnTargetAdded += OnTargetAdded;
 
             EventManager.Subscribe<ToggleUIEvent>( OnToggleUIEvent );
 
-            _arCamera = ARFoundationBridge.Instance.GetARCamera();
-
+            _arCamera = _arFoundationBridge.GetARCamera();
             if ( _arCamera != null )
             {
                 _lastCamPos = _arCamera.transform.position;
                 _lastCamRot = _arCamera.transform.rotation;
             }
         }
+        private void Update() => _currentScreenOrientation = Screen.orientation;
 
         RenderTexture CreateRT( int width, int height )
         {
@@ -118,19 +106,18 @@ namespace Felina.ARColoringBook.Runtime
         void OnEnable() => Start();
         void OnDisable()
         {
-            if ( ARFoundationBridge.Instance != null )
-                ARFoundationBridge.Instance.OnTargetAdded -= OnTargetAdded;
+            _arFoundationBridge.OnTargetAdded -= OnTargetAdded;
         }
 
         private unsafe void ProcessCaptureCPU()
         {
-            var img = ARFoundationBridge.Instance.GetXRCpuImage();
+            var img = _arFoundationBridge.GetXRCpuImage();
 
             int rotatedWidth = 0;
             int rotatedHeight = 0;
             float rotationAngleRad = 0;
 
-            if ( img.HasValue || !img.Value.valid || _target.Transform == null ) return;
+            if (img == null || !img.HasValue || !img.Value.valid || _target.Transform == null ) return;
 
             using ( img.Value )
             {
@@ -519,11 +506,6 @@ namespace Felina.ARColoringBook.Runtime
             }
         }
 
-        private async void ProcessRT()
-        {
-            ProcessCaptureCPU();
-            await UniTask.WaitForEndOfFrame();
-        }
 
         [BurstCompile]
         public struct ScannerJob : IJob

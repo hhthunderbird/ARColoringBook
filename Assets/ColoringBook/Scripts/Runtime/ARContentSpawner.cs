@@ -1,3 +1,4 @@
+using Felina.ARColoringBook.DI;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -24,6 +25,9 @@ namespace Felina.ARColoringBook.Runtime
     {
         [SerializeField]
         private List<TargetData> _targetData = new List<TargetData>();
+
+        [Header( "Dependencies" )]
+        [Inject] private ARScannerManager _arScannerManager;
 
         [Header( "Shader Property Names" )]
         [SerializeField] private string _baseMapProperty = "_BaseMap";
@@ -126,7 +130,7 @@ namespace Felina.ARColoringBook.Runtime
 
         private void Start()
         {
-            ARScannerManager.Instance.OnTextureCaptured += UpdateModel;
+            _arScannerManager.OnTextureCaptured += UpdateModel;
 
             if ( _targetData.Count == 0 )
             {
@@ -259,25 +263,21 @@ namespace Felina.ARColoringBook.Runtime
 #else
             GetComponent<ARTrackedImageManager>().trackedImagesChanged -= OnTrackedImagesChanged;
 #endif
-
-            if ( ARScannerManager.Instance != null )
-            {
-                ARScannerManager.Instance.OnTextureCaptured -= UpdateModel;
-            }
+            _arScannerManager.OnTextureCaptured -= UpdateModel;
         }
 
 #if UNITY_2020_2_OR_NEWER
         private void OnTrackablesChanged( ARTrackablesChangedEventArgs<ARTrackedImage> eventArgs )
         {
 #if AR_FOUNDATION_6_OR_NEWER
-var addedList = new List<ARTrackedImage>(eventArgs.added);
-            var updatedList = new List<ARTrackedImage>(eventArgs.updated);
+            var addedList = new List<ARTrackedImage>( eventArgs.added );
+            var updatedList = new List<ARTrackedImage>( eventArgs.updated );
             var removedList = new List<ARTrackedImage>();
-            foreach (var kvp in eventArgs.removed)
+            foreach ( var kvp in eventArgs.removed )
             {
-                removedList.Add(kvp.Value);
+                removedList.Add( kvp.Value );
             }
-            TrackableProcessing(addedList, updatedList, removedList);
+            TrackableProcessing( addedList, updatedList, removedList );
 #else
 TrackableProcessing(eventArgs.added, eventArgs.updated, eventArgs.removed);
 #endif

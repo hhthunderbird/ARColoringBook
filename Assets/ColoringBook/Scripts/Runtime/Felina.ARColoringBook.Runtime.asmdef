@@ -1,7 +1,7 @@
 {
     "name": "Felina.ARColoringBook.Runtime",
     "rootNamespace": "Felina.ARColoringBook",
-    "references": [ 
+    "references": [
         "Unity.XR.ARFoundation",
         "Unity.XR.ARSubsystems",
         "Unity.Mathematics",
@@ -11,7 +11,8 @@
         "Felina.ARColoringBook.Events",
         "Unity.TextMeshPro",
         "Unity.XR.CoreUtils",
-        "Unity.RenderPipelines.Universal.Runtime"
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Felina.ARColoringBook.DI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

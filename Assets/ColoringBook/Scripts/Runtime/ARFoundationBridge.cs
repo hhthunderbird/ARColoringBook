@@ -1,5 +1,7 @@
 using Felina.ARColoringBook.Base;
+using Felina.ARColoringBook.DI;
 using Felina.ARColoringBook.Events;
+using Felina.ARColoringBook.Runtime;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,24 +12,16 @@ namespace Felina.ARColoringBook.Bridges
 {
     public class ARFoundationBridge : MonoBehaviour, IARBridge
     {
-        public static ARFoundationBridge Instance;
-
         public event Action<ScanTarget> OnTargetAdded;
 
-        [Header( "AR Foundation Dependencies" )]
-        [SerializeField] private ARTrackedImageManager _aRTrackedImageManager;
-        [SerializeField] private ARCameraManager _cameraManager;
-        [SerializeField] private Camera _arCamera;
+        [Header( "Dependencies" )]
+        [Inject] private ARTrackedImageManager _aRTrackedImageManager;
+        [Inject] private ARCameraManager _cameraManager;
+        [Inject] private Camera _arCamera;
 
         private readonly HashSet<TrackableId> _pendingAdds = new HashSet<TrackableId>();
         private readonly ToggleUIEvent _toggleUIEvent = new ToggleUIEvent( true );
         private string _lastTrackingImage;
-
-        private void Awake()
-        {
-            if ( Instance != null ) Destroy( Instance );
-            Instance = this;
-        }
 
         private void Start() 
         {
