@@ -1,8 +1,8 @@
 ﻿using Cysharp.Threading.Tasks;
-using Felina.ARColoringBook.Base;
-using Felina.ARColoringBook.Bridges;
-using Felina.ARColoringBook.Events;
-using UnityEngine.XR.ARSubsystems;
+using Felina.ARTextureMapping.Base;
+using Felina.ARTextureMapping.Bridges;
+using Felina.ARTextureMapping.DI;
+using Felina.ARTextureMapping.Events;
 using System;
 using System.Threading;
 using Unity.Burst;
@@ -10,9 +10,9 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
-using Felina.ARColoringBook.DI;
+using UnityEngine.XR.ARSubsystems;
 
-namespace Felina.ARColoringBook.Runtime
+namespace Felina.ARTextureMapping.Runtime
 {
     public class ARScannerManager : MonoBehaviour
     {
@@ -117,7 +117,7 @@ namespace Felina.ARColoringBook.Runtime
             int rotatedHeight = 0;
             float rotationAngleRad = 0;
 
-            if (img == null || !img.HasValue || !img.Value.valid || _target.Transform == null ) return;
+            if ( img == null || !img.HasValue || !img.Value.valid || _target.Transform == null ) return;
 
             using ( img.Value )
             {

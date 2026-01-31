@@ -1,6 +1,6 @@
 # Multi-Version Support
 
-Felina AR Coloring Book supports Unity 2019.4 LTS and newer, and AR Foundation 4.x or higher (no known max version).
+Felina AR Texture Mapping supports Unity 2019.4 LTS and newer, and AR Foundation 4.x or higher (no known max version).
 
 ## Supported Platforms
 - iOS (ARKit) — uses native plugin: `InternalSolver.a`

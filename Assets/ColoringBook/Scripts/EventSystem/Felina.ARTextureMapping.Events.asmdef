@@ -1,6 +1,6 @@
 {
-    "name": "Felina.ARColoringBook.Events",
-    "rootNamespace": "Felina.ARColoringBook",
+    "name": "Felina.ARTextureMapping.Events",
+    "rootNamespace": "Felina.ARTextureMapping",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

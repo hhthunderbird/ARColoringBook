@@ -792,11 +792,11 @@ MonoBehaviour:
       Culture=neutral, PublicKeyToken=null
     Instance: {fileID: 1801407424}
   - TypeName: ARFoundationBridge
-    FullQualifiedName: Felina.ARColoringBook.Bridges.ARFoundationBridge, Felina.ARColoringBook.Runtime,
+    FullQualifiedName: Felina.ARTextureMapping.Bridges.ARFoundationBridge, Felina.ARTextureMapping.Runtime,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     Instance: {fileID: 1879394833}
   - TypeName: ARScannerManager
-    FullQualifiedName: Felina.ARColoringBook.Runtime.ARScannerManager, Felina.ARColoringBook.Runtime,
+    FullQualifiedName: Felina.ARTextureMapping.Runtime.ARScannerManager, Felina.ARTextureMapping.Runtime,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     Instance: {fileID: 1879394832}
   _dependants:

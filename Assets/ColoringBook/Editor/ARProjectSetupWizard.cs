@@ -8,11 +8,11 @@ using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 using UnityEditor.SceneManagement;
 using UnityEngine.SpatialTracking;
-using Felina.ARColoringBook.DI;
+using Felina.ARTextureMapping.DI;
 using System.Reflection;
 using UnityEngine.XR.ARFoundation;
 
-namespace Felina.ARColoringBook.Editor
+namespace Felina.ARTextureMapping.Editor
 {
     [InitializeOnLoad]
     public class ARProjectSetupWizard : EditorWindow
@@ -422,9 +422,9 @@ namespace Felina.ARColoringBook.Editor
         {
             string[] asmdefFiles = new string[]
             {
-                "Assets/ColouringBook/Scripts/Runtime/Felina.ARColoringBook.Runtime.asmdef",
-                "Assets/ColouringBook/Scripts/Editor/Felina.ARColoringBook.Editor.asmdef",
-                "Assets/ColouringBook/Scripts/Events/Felina.ARColoringBook.Events.asmdef"
+                "Assets/ColouringBook/Scripts/Runtime/Felina.ARTextureMapping.Runtime.asmdef",
+                "Assets/ColouringBook/Scripts/Editor/Felina.ARTextureMapping.Editor.asmdef",
+                "Assets/ColouringBook/Scripts/Events/Felina.ARTextureMapping.Events.asmdef"
             };
 
             bool changed = false;

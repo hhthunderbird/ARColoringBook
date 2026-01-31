@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Unity.Mathematics;
 
-namespace Felina.ARColoringBook.Runtime
+namespace Felina.ARTextureMapping.Runtime
 {
     public static class Solver
     {

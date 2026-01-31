@@ -183,12 +183,12 @@ You only need samples relevant to your use case:
 
 | Sample | Purpose | Recommended For |
 |--------|---------|-----------------|
-| Image Tracking | Track printed images/markers | AR Coloring Book (Yes!) |
+| Image Tracking | Track printed images/markers | AR Texture Mapping (Yes!) |
 | Plane Detection | Detect floor/walls | AR placement apps |
 | Face Tracking | Track human faces | AR filters/masks |
 | Meshing | 3D environment scanning | Advanced AR apps |
 
-**For AR Coloring Book:** Import **Image Tracking** sample only.
+**For AR Texture Mapping:** Import **Image Tracking** sample only.
 
 ---
 

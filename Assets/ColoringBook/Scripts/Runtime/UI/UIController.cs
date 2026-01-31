@@ -1,4 +1,4 @@
-using Felina.ARColoringBook.Events;
+using Felina.ARTextureMapping.Events;
 using System;
 using TMPro;
 using UnityEngine;

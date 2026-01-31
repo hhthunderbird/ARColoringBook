@@ -1,6 +1,6 @@
-# Felina AR Coloring Book - Installation Guide
+# Felina AR Texture Mapping - Installation Guide
 
-Felina AR Coloring Book requires:
+Felina AR Texture Mapping requires:
 - Unity 2019.4 LTS or newer
 - AR Foundation 4.x or higher (no known max version)
 - iOS (ARKit) or Android (ARCore) device for runtime

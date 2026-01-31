@@ -1,4 +1,4 @@
-﻿# Felina AR Coloring Book License
+﻿# Felina AR Texture Mapping License
 
 **Version 2.0.0**  
 Copyright (c) 2024 Felina. All rights reserved.

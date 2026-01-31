@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Felina.ARColoringBook.Events
+namespace Felina.ARTextureMapping.Events
 {
     public static class EventManager
     {

@@ -1,11 +1,11 @@
-using Felina.ARColoringBook.DI;
+using Felina.ARTextureMapping.DI;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 
-namespace Felina.ARColoringBook.Runtime
+namespace Felina.ARTextureMapping.Runtime
 {
     [Serializable]
     public struct TargetData

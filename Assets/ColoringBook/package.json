@@ -1,7 +1,7 @@
 {
   "name": "com.felina.arcoloringbook",
   "version": "2.0.0",
-  "displayName": "AR Coloring Book",
+  "displayName": "AR Texture Mapping",
   "description": "Toolkit for Unity AR Foundation projects: real-time texture capture, prefab spawning, and material updates. Not an image tracking system. Includes setup wizard and AR Foundation integration. Supports Unity 2019.4+ and AR Foundation 4.x+.",
   "unity": "2019.4",
   "unityRelease": "0f1",

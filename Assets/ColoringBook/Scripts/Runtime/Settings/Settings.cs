@@ -4,7 +4,7 @@ using System;
 using System.Linq;
 using UnityEditor;
 
-namespace Felina.ARColoringBook
+namespace Felina.ARTextureMapping
 {
     public enum RenderPipelineMode
     {

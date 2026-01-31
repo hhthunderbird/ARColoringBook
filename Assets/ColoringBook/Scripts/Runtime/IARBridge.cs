@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.XR.ARSubsystems;
 
-namespace Felina.ARColoringBook.Base
+namespace Felina.ARTextureMapping.Base
 {
     [Serializable]
     public struct ScanTarget

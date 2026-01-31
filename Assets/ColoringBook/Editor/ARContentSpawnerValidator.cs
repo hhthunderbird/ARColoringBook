@@ -4,9 +4,9 @@ using UnityEngine.XR.ARFoundation;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.XR.ARSubsystems;
-using Felina.ARColoringBook.Runtime;
+using Felina.ARTextureMapping.Runtime;
 
-namespace Felina.ARColoringBook.Editor
+namespace Felina.ARTextureMapping.Editor
 {
     [CustomEditor( typeof( ARContentSpawner ) )]
     public class ARContentSpawnerValidator : UnityEditor.Editor

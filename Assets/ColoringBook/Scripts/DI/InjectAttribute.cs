@@ -1,5 +1,5 @@
 using System;
-namespace Felina.ARColoringBook.DI
+namespace Felina.ARTextureMapping.DI
 {
     [AttributeUsage( AttributeTargets.Field | AttributeTargets.Property )]
     public class InjectAttribute : Attribute { }

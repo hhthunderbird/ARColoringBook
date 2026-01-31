@@ -1,14 +1,14 @@
-using Felina.ARColoringBook.Base;
-using Felina.ARColoringBook.DI;
-using Felina.ARColoringBook.Events;
-using Felina.ARColoringBook.Runtime;
+using Felina.ARTextureMapping.Base;
+using Felina.ARTextureMapping.DI;
+using Felina.ARTextureMapping.Events;
+using Felina.ARTextureMapping.Runtime;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 
-namespace Felina.ARColoringBook.Bridges
+namespace Felina.ARTextureMapping.Bridges
 {
     public class ARFoundationBridge : MonoBehaviour, IARBridge
     {

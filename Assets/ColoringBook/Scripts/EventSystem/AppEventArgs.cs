@@ -1,6 +1,6 @@
 using System;
 
-namespace Felina.ARColoringBook.Events
+namespace Felina.ARTextureMapping.Events
 {
     public class AppEventArgs : EventArgs{}
 }

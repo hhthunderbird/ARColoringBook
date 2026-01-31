@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Felina.ARColoringBook.Events
+namespace Felina.ARTextureMapping.Events
 {
     public abstract class AppEvent { }
 

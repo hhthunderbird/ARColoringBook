@@ -1,27 +1,36 @@
 {
-    "name": "Felina.ARColoringBook.Runtime",
-    "rootNamespace": "Felina.ARColoringBook",
+    "name": "Felina.ARTextureMapping.Editor",
+    "rootNamespace": "",
     "references": [
+        "Felina.ARTextureMapping.Runtime",
         "Unity.XR.ARFoundation",
         "Unity.XR.ARSubsystems",
-        "Unity.Mathematics",
-        "Unity.Burst",
-        "Unity.Collections",
-        "UniTask",
-        "Felina.ARColoringBook.Events",
-        "Unity.TextMeshPro",
-        "Unity.XR.CoreUtils",
+        "Unity.XR.ARFoundation.Editor",
         "Unity.RenderPipelines.Universal.Runtime",
-        "Felina.ARColoringBook.DI"
+        "UnityEngine.SpatialTracking",
+        "Felina.ARTextureMapping.DI",
+        "UnityEditor.UI"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
-    "allowUnsafeCode": true,
+    "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [
+        {
+            "name": "com.unity.xr.arfoundation",
+            "expression": "1.0.0",
+            "define": "AR_FOUNDATION_READY"
+        },
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "1.0.0",
+            "define": "URP_PRESENT"
+        },
         {
             "name": "com.unity.xr.arfoundation",
             "expression": "4.0.0",
@@ -36,16 +45,6 @@
             "name": "com.unity.xr.arfoundation",
             "expression": "6.0.0",
             "define": "AR_FOUNDATION_6_OR_NEWER"
-        },
-        {
-            "name": "com.unity.render-pipelines.universal",
-            "expression": "1.0.0",
-            "define": "URP_PRESENT"
-        },
-        {
-            "name": "com.cysharp.unitask",
-            "expression": "1.0.0",
-            "define": "UNITASK_READY"
         }
     ],
     "noEngineReferences": false

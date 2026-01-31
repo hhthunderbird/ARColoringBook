@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Felina AR Coloring Book will be documented in this file.
+All notable changes to Felina AR Texture Mapping will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Initial Release
 
-**Felina AR Coloring Book v1.0.0** - Toolkit for Unity AR Foundation image tracking: real-time texture capture, prefab spawning, and material updates. Supports Unity 2019.4+ and AR Foundation 4.x+.
+**Felina AR Texture Mapping v1.0.0** - Toolkit for Unity AR Foundation image tracking: real-time texture capture, prefab spawning, and material updates. Supports Unity 2019.4+ and AR Foundation 4.x+.
 
 ---
 

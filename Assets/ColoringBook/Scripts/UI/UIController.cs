@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Felina.ARColoringBook.Events
+namespace Felina.ARTextureMapping.Events
 {
     public class UIController : MonoBehaviour
     {

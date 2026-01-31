@@ -4,7 +4,7 @@ using System.Reflection;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace Felina.ARColoringBook.DI
+namespace Felina.ARTextureMapping.DI
 {
     [DefaultExecutionOrder( -1000 )]
     public class MonoContainer : MonoBehaviour
